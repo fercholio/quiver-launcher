@@ -413,6 +413,13 @@ public partial class BrowseView : UserControl
         Reload();
     }
 
+    // Reloads the current page (catalog or the player's own list) without changing the search or filters.
+    private void BrowseRefresh_Click(object? sender, RoutedEventArgs e)
+    {
+        if (Model == null || Model.IsLoading) return;
+        Reload();
+    }
+
     private void BrowseSourceTab_Click(object? sender, RoutedEventArgs e)
     {
         var custom = ReferenceEquals(sender, BrowseCustomListTabButton);
