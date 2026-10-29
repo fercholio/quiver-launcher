@@ -3,6 +3,7 @@ namespace QuiverLauncher.Views;
 public enum LibraryActionKind
 {
     AddToSteam,
+    AutoTag,
     AutoUpdateMenu,
     BackToVerifiedUpdates,
     ChangeVersion,

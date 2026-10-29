@@ -7,6 +7,41 @@ namespace QuiverLauncher.Services;
 public sealed class LibraryCustomizationService(GameManager manager, LibraryViewModel library, LauncherSession session,
     Func<IStorageProvider> storage, Func<string, string, bool, Task<bool>> message)
 {
+    /// <summary>Set after construction; used to persist AI-suggested tags through the normal tag-save path.</summary>
+    public LibraryMetadataService? Metadata { get; set; }
+
+    public Task AutoTagAsync(GameInfo? game) => session.RunAsync(async () =>
+    {
+        if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
+        if (Metadata == null) { await message("Tag saving is unavailable.", "Error", false); return; }
+        if (!AiConfig.HasLlm)
+        {
+            await message("No LLM is configured. Set it in Settings → Advanced → AI features to suggest tags.", "AI Tagging Unavailable", false);
+            return;
+        }
+
+        List<string> suggested;
+        try { suggested = await AppTagger.SuggestTagsAsync(game, session.Token); }
+        catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { return; }
+        catch (Exception ex) { await message($"Couldn't suggest tags: {ex.Message}", "AI Tagging Failed", false); return; }
+
+        if (suggested.Count == 0)
+        {
+            await message("The AI didn't suggest any tags. Check that the LLM is reachable in Settings → Advanced.", "No Tags Suggested", false);
+            return;
+        }
+
+        var merged = TagHelper.NormalizeTags(game.Tags.Concat(suggested));
+        var added = suggested.Where(t => !game.Tags.Contains(t, StringComparer.OrdinalIgnoreCase)).ToList();
+        var summary = added.Count > 0 ? string.Join(", ", added) : "(no new tags; all already present)";
+        if (!await message($"Add these AI tags to {game.Name}?\n\n{summary}", "AI Tags", true)) return;
+        session.Token.ThrowIfCancellationRequested();
+
+        try { await Metadata.SaveAsync(game, MetadataEditMode.Tags, string.Join(", ", merged), session.Token); }
+        catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { }
+        catch (Exception ex) { await message($"Couldn't save the tags: {ex.Message}", "AI Tagging Failed", false); }
+    });
+
     public Task SetIconAsync(GameInfo? game) => session.RunAsync(async () =>
     {
         if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
