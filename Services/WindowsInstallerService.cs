@@ -125,12 +125,53 @@ public sealed class WindowsInstallerService(IWindowsInstallerProcessRunner runne
     public static async Task SelectExecutableAsync(GameInfo game, string metadataPath, IGameDownloadDialogs dialogs)
     {
         var receipt = ReadReceipt(metadataPath) ?? throw new InvalidOperationException("No Windows installation record was found.");
-        var selected = await dialogs.PickWindowsExecutableAsync(game.Name ?? "this app", receipt.ExecutablePath, metadataPath).ConfigureAwait(false);
+        // An installer puts the game under Program Files, not in Quiver's folder, so start the picker where
+        // it most likely landed (a Program Files subfolder matching the app) instead of the metadata folder.
+        var fallbackFolder = GuessInstalledFolder(game.Name) ?? metadataPath;
+        var selected = await dialogs.PickWindowsExecutableAsync(game.Name ?? "this app", receipt.ExecutablePath, fallbackFolder).ConfigureAwait(false);
         if (selected != null)
         {
             if (!IsExecutable(selected)) throw new InvalidOperationException("Choose an existing Windows .exe file.");
             WriteReceipt(metadataPath, receipt with { Phase = "Linked", ExecutablePath = Path.GetFullPath(selected) });
         }
         ApplyState(game, metadataPath);
+    }
+
+    // Best guess at where an installer put the app: a Program Files subfolder whose name matches the app,
+    // else the Program Files root. Returns null off Windows (callers fall back to the metadata folder).
+    internal static string? GuessInstalledFolder(string? appName)
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        var roots = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        }.Where(r => !string.IsNullOrEmpty(r) && Directory.Exists(r)).ToList();
+
+        static string Loose(string s) => new(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        var wanted = string.IsNullOrWhiteSpace(appName) ? "" : Loose(appName);
+
+        if (wanted.Length > 0)
+        {
+            foreach (var root in roots)
+            {
+                try
+                {
+                    var match = Directory.EnumerateDirectories(root)
+                        .FirstOrDefault(d =>
+                        {
+                            var name = Loose(Path.GetFileName(d));
+                            return name.Length > 0 && (name == wanted || name.Contains(wanted) || wanted.Contains(name));
+                        });
+                    if (match != null)
+                        return match;
+                }
+                catch { /* unreadable root — skip */ }
+            }
+        }
+
+        return roots.FirstOrDefault();
     }
 }
