@@ -9,11 +9,17 @@ namespace QuiverLauncher.Services;
 /// </summary>
 public static class AiConfig
 {
+    /// <summary>The saved settings, when loaded. Values here take precedence over environment variables.</summary>
+    public static AppSettings? Settings { get; set; }
+
     private static string? Env(string name)
     {
         var value = Environment.GetEnvironmentVariable(name);
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
+
+    private static string? FromSettings(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static bool EnvFlag(string name, bool fallback)
     {
@@ -23,22 +29,22 @@ public static class AiConfig
     }
 
     /// <summary>OpenAI-compatible chat endpoint base (…/v1). Default: the LiteLLM gateway (node1).</summary>
-    public static string LlmBaseUrl => Env("QUIVER_LLM_URL") ?? "http://100.72.104.59:4000/v1";
+    public static string LlmBaseUrl => FromSettings(Settings?.AiLlmUrl) ?? Env("QUIVER_LLM_URL") ?? "http://100.72.104.59:4000/v1";
 
     /// <summary>Chat model name the gateway routes. Default: the 32B agent model.</summary>
-    public static string LlmModel => Env("QUIVER_LLM_MODEL") ?? "agent-32b";
+    public static string LlmModel => FromSettings(Settings?.AiLlmModel) ?? Env("QUIVER_LLM_MODEL") ?? "agent-32b";
 
     /// <summary>Optional bearer token for the gateway.</summary>
-    public static string? LlmApiKey => Env("QUIVER_LLM_KEY");
+    public static string? LlmApiKey => FromSettings(Settings?.AiLlmApiKey) ?? Env("QUIVER_LLM_KEY");
 
     /// <summary>ComfyUI base URL used to generate cover art. Default: node2's ComfyUI (SDXL).</summary>
-    public static string ComfyUiUrl => Env("QUIVER_COMFYUI_URL") ?? "http://100.114.215.71:8188";
+    public static string ComfyUiUrl => FromSettings(Settings?.AiComfyUiUrl) ?? Env("QUIVER_COMFYUI_URL") ?? "http://100.114.215.71:8188";
 
     /// <summary>Checkpoint ComfyUI loads for cover art.</summary>
-    public static string ComfyUiCheckpoint => Env("QUIVER_COMFYUI_CHECKPOINT") ?? "sd_xl_base_1.0.safetensors";
+    public static string ComfyUiCheckpoint => FromSettings(Settings?.AiComfyUiCheckpoint) ?? Env("QUIVER_COMFYUI_CHECKPOINT") ?? "sd_xl_base_1.0.safetensors";
 
     /// <summary>Let the AI pick the game's executable when several are found. On by default; the heuristic runs first regardless.</summary>
-    public static bool ExecutableDetectionEnabled => EnvFlag("QUIVER_AI_EXE", true);
+    public static bool ExecutableDetectionEnabled => Settings?.AiExecutableDetectionEnabled ?? EnvFlag("QUIVER_AI_EXE", true);
 
     /// <summary>How long any single AI request may take before Quiver gives up and uses the fallback.</summary>
     public static TimeSpan RequestTimeout

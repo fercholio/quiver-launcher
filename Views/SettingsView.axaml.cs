@@ -309,6 +309,12 @@ public partial class SettingsView : UserControl
                 GitLabTokenTextBox.Text = _settings.GitLabApiToken;
             if (CodebergTokenTextBox != null)
                 CodebergTokenTextBox.Text = _settings.CodebergApiToken;
+            if (AiLlmUrlTextBox != null) AiLlmUrlTextBox.Text = _settings.AiLlmUrl;
+            if (AiLlmModelTextBox != null) AiLlmModelTextBox.Text = _settings.AiLlmModel;
+            if (AiLlmKeyTextBox != null) AiLlmKeyTextBox.Text = _settings.AiLlmApiKey;
+            if (AiComfyUrlTextBox != null) AiComfyUrlTextBox.Text = _settings.AiComfyUiUrl;
+            if (AiComfyCheckpointTextBox != null) AiComfyCheckpointTextBox.Text = _settings.AiComfyUiCheckpoint;
+            if (AiExecutableDetectionCheckBox != null) AiExecutableDetectionCheckBox.IsChecked = _settings.AiExecutableDetectionEnabled;
             RefreshApiRateLimits();
             if (CustomAppListTextBox != null)
                 CustomAppListTextBox.Text = _settings.CustomAppListLocation;
@@ -465,6 +471,19 @@ public partial class SettingsView : UserControl
     internal async void SaveGitHubToken_Click(object? sender, RoutedEventArgs e) { if (_context != null && !_suppressSettingsUiEvents) await _session.RunAsync(() => SaveApiTokenAsync("github", GitHubTokenTextBox.Text)); }
     internal async void SaveGitLabToken_Click(object? sender, RoutedEventArgs e) { if (_context != null && !_suppressSettingsUiEvents) await _session.RunAsync(() => SaveApiTokenAsync("gitlab", GitLabTokenTextBox.Text)); }
     internal async void SaveCodebergToken_Click(object? sender, RoutedEventArgs e) { if (_context != null && !_suppressSettingsUiEvents) await _session.RunAsync(() => SaveApiTokenAsync("codeberg", CodebergTokenTextBox.Text)); }
+
+    internal void SaveAiSettings_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_context == null || _suppressSettingsUiEvents) return;
+        _settings.AiLlmUrl = (AiLlmUrlTextBox.Text ?? "").Trim();
+        _settings.AiLlmModel = (AiLlmModelTextBox.Text ?? "").Trim();
+        _settings.AiLlmApiKey = (AiLlmKeyTextBox.Text ?? "").Trim();
+        _settings.AiComfyUiUrl = (AiComfyUrlTextBox.Text ?? "").Trim();
+        _settings.AiComfyUiCheckpoint = (AiComfyCheckpointTextBox.Text ?? "").Trim();
+        _settings.AiExecutableDetectionEnabled = AiExecutableDetectionCheckBox.IsChecked == true;
+        Model.Save(_settings);
+        AiConfig.Settings = _settings;
+    }
     internal void RefreshApiRateLimits()
     {
         if (_context == null) return;

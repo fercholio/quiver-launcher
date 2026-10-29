@@ -93,6 +93,14 @@ namespace QuiverLauncher
         public string GitHubApiToken { get; set; } = string.Empty;
         public string GitLabApiToken { get; set; } = string.Empty;
         public string CodebergApiToken { get; set; } = string.Empty;
+        /// <summary>Optional AI config (OpenAI-compatible LLM + ComfyUI). Blank falls back to QUIVER_* env vars, then defaults.</summary>
+        public string AiLlmUrl { get; set; } = string.Empty;
+        public string AiLlmModel { get; set; } = string.Empty;
+        public string AiLlmApiKey { get; set; } = string.Empty;
+        public string AiComfyUiUrl { get; set; } = string.Empty;
+        public string AiComfyUiCheckpoint { get; set; } = string.Empty;
+        /// <summary>Let the AI pick a game's executable when several are found. The offline heuristic runs regardless.</summary>
+        public bool AiExecutableDetectionEnabled { get; set; } = true;
         public string SortBy { get; set; } = "LastPlayed";
         /// <summary>The player's own app list for Browse: a local JSON file or a URL, in the apps.json format.</summary>
         public string CustomAppListLocation { get; set; } = string.Empty;
@@ -238,7 +246,13 @@ namespace QuiverLauncher
             LibraryCardTagMaxLines = TagChipHelper.NormalizeLibraryCardTagMaxLines(LibraryCardTagMaxLines);
         }
 
-        public static AppSettings Load() => SettingsStoreProvider.Default.Load();
+        public static AppSettings Load()
+        {
+            var settings = SettingsStoreProvider.Default.Load();
+            // Keep the AI helpers pointed at the current settings (they take precedence over env vars).
+            AiConfig.Settings = settings;
+            return settings;
+        }
 
         public static void Save(AppSettings settings) => SettingsStoreProvider.Default.Save(settings);
     }

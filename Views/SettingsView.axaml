@@ -1005,6 +1005,24 @@
 <Button Classes="options" Content="Create token" MinHeight="32" Padding="10,4" HorizontalAlignment="Stretch" Click="CreateCodebergToken_Click" FontSize="12"/><TextBlock Text="Select permissions: repository: Read and user: Read." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,4,0,0"/>
 <Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,12,0,8"/>
 
+										<!-- AI features (optional) -->
+										<TextBlock Text="AI FEATURES (OPTIONAL)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeTextSecondary}" LetterSpacing="1" Margin="0,0,0,4"/>
+										<TextBlock Text="Point Quiver at an OpenAI-compatible LLM and a ComfyUI server to auto-detect executables and generate or upscale cover art. All optional: these features are skipped if the servers are unreachable." FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+										<CheckBox x:Name="AiExecutableDetectionCheckBox" Content="Auto-detect the game's executable with AI when several are found" FontSize="12" Foreground="{DynamicResource ThemeText}" Margin="0,0,0,8"/>
+										<TextBlock Text="LLM endpoint (…/v1)" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiLlmUrlTextBox" PlaceholderText="http://host:4000/v1" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<TextBlock Text="LLM model" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiLlmModelTextBox" PlaceholderText="agent-32b" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<TextBlock Text="LLM API key (optional)" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiLlmKeyTextBox" PasswordChar="●" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<TextBlock Text="ComfyUI endpoint (cover art)" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiComfyUrlTextBox" PlaceholderText="http://host:8188" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<TextBlock Text="ComfyUI checkpoint" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiComfyCheckpointTextBox" PlaceholderText="sd_xl_base_1.0.safetensors" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<Button x:Name="SaveAiSettingsButton" Classes="options" Content="Save AI settings" MinHeight="44" HorizontalAlignment="Stretch" Click="SaveAiSettings_Click" FontSize="12"/>
+										<TextBlock Text="Leave a field blank to use its default (or the matching QUIVER_* environment variable)." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,2,0,8"/>
+										<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,12,0,8"/>
+
 										<!-- The player's own app list -->
 										<TextBlock Text="MY APP LIST"
 												   FontSize="10" FontWeight="Bold"
