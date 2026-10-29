@@ -29,6 +29,22 @@
 												  Click="OpenFolder_Click"
 												  IsVisible="{Binding CanOpenFolder}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Open Save Folder"
+												  Click="OpenSaveFolder_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Copy Save Folder Path"
+												  Click="CopySaveFolderPath_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Back Up…"
+												  Click="BackUp_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Restore from Backup…"
+												  Click="RestoreBackup_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Versions"
 												  IsVisible="{Binding CanVersionOptions}">
 											<MenuItem Header="Change Version"
@@ -57,7 +73,10 @@
 											<MenuItem Header="{Binding ExecutableSelectionLabel}"
 													  CommandParameter="{Binding}"
 													  Click="SelectDifferentExecutable_Click"
-													  IsVisible="{Binding HasExecutableChoice}"/>
+													  IsVisible="{Binding CanOverrideExecutable}"/>
+											<MenuItem Header="Arguments &amp; Environment…"
+													  Click="ConfigureLaunchOptions_Click"
+													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Windows Runner…"
 													  Click="ConfigureWindowsRunner_Click"
 													  IsVisible="{Binding ShowWindowsRunnerOptions}"
@@ -82,12 +101,31 @@
 											<MenuItem Header="Edit Tags"
 													  Click="EditTagsMenu_Click"
 													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Collections…"
+													  Click="ManageCollections_Click"
+													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Auto-tag (AI)"
+													  Click="AutoTag_Click"
+													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Custom Display Name"
 													  Click="EditCustomDisplayNameMenu_Click"
 													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Add Custom Image"
 													  Click="SetCustomIcon_Click"
 													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Provide Base Game File…"
+													  Click="ProvideBaseFile_Click"
+													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Get Cover (SteamGridDB)"
+													  Click="FetchCoverFromSteamGridDb_Click"
+													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Generate Cover (AI)"
+													  Click="GenerateAiCover_Click"
+													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Upscale Cover (AI)"
+													  Click="UpscaleCover_Click"
+													  CommandParameter="{Binding}"
+													  IsVisible="{Binding HasCustomIcon}"/>
 											<MenuItem Header="Remove Custom Image"
 													  Click="RemoveCustomIcon_Click"
 													  CommandParameter="{Binding}"
@@ -152,10 +190,13 @@
     <services:HoverScrollText views:LibraryListRowLayout.Role="Latest" Text="{Binding LatestVersionLabel}" ToolTip.Tip="{Binding LatestVersionToolTip}" IsActive="{Binding ShouldScrollTitle}" FontSize="12" Foreground="{DynamicResource ThemeTextSecondary}"/>
     <services:HoverScrollText views:LibraryListRowLayout.Role="Preferred" Text="{Binding PreferredVersionLabel}" IsActive="{Binding ShouldScrollTitle}" FontSize="12" Foreground="{DynamicResource ThemeTextSecondary}"/>
     <Border views:LibraryListRowLayout.Role="Tags" ClipToBounds="True">
-        <ItemsControl ItemsSource="{Binding LibraryCardTags}">
-            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource ThemeLighter}" CornerRadius="3" Padding="5,0" Margin="0,0,4,2" Height="16"><TextBlock Text="{Binding}" FontSize="9" Foreground="{DynamicResource ThemeTextSecondary}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+            <Border IsVisible="{Binding NeedsOwnBaseFile}" Background="#4A3A1E" BorderBrush="#d7b56a" BorderThickness="1" CornerRadius="3" Padding="5,0" Margin="0,0,0,2" Height="16" VerticalAlignment="Top" ToolTip.Tip="{Binding BaseFileRequirementNote}"><TextBlock Text="⚠ ROM/ISO needed" FontSize="9" Foreground="#d7b56a" VerticalAlignment="Center"/></Border>
+            <ItemsControl ItemsSource="{Binding LibraryCardTags}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource ThemeLighter}" CornerRadius="3" Padding="5,0" Margin="0,0,4,2" Height="16"><TextBlock Text="{Binding}" FontSize="9" Foreground="{DynamicResource ThemeTextSecondary}"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
     </Border>
     <StackPanel views:LibraryListRowLayout.Role="Actions" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button Classes="modern" Content="{Binding ButtonText}" FontSize="14" Padding="8,0" IsEnabled="{Binding !IsLoading}" PlatformFeedback.FeedbackType="Auto" Click="GameButton_Click" Tag="{Binding}"/>
@@ -308,6 +349,19 @@
 										</DataTemplate>
 									</ItemsControl.ItemTemplate>
 								</ItemsControl>
+							</Border>
+							<Border IsVisible="{Binding NeedsOwnBaseFile}"
+									Background="#4A3A1E"
+									BorderBrush="#d7b56a"
+									BorderThickness="1"
+									CornerRadius="3"
+									Padding="6,1"
+									Margin="0,5,0,0"
+									HorizontalAlignment="Left"
+									ToolTip.Tip="{Binding BaseFileRequirementNote}">
+								<TextBlock Text="⚠ Needs your own ROM/ISO"
+										   FontSize="9"
+										   Foreground="#d7b56a"/>
 							</Border>
 						</StackPanel>
 
@@ -508,6 +562,19 @@
 										</DataTemplate>
 									</ItemsControl.ItemTemplate>
 								</ItemsControl>
+							</Border>
+							<Border IsVisible="{Binding NeedsOwnBaseFile}"
+									Background="#4A3A1E"
+									BorderBrush="#d7b56a"
+									BorderThickness="1"
+									CornerRadius="3"
+									Padding="6,1"
+									Margin="0,5,0,0"
+									HorizontalAlignment="Left"
+									ToolTip.Tip="{Binding BaseFileRequirementNote}">
+								<TextBlock Text="⚠ Needs your own ROM/ISO"
+										   FontSize="9"
+										   Foreground="#d7b56a"/>
 							</Border>
 						</StackPanel>
 

@@ -803,10 +803,14 @@ public sealed class LibraryLaunchController
                     return;
                 }
 
+                // A manual override lists every candidate, top-level first then any buried in subfolders,
+                // so the player can reach the real game exe even when a top-level installer/launcher exists
+                // (and keeps re-running on Play). Auto-launch still prefers the ranked top-level pick.
                 var executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.TopDirectoryOnly, out _);
-                if (executables.Count == 0)
+                foreach (var nested in GameInfo.GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _))
                 {
-                    executables = GameInfo.GetExecutableCandidates(gamePath, SearchOption.AllDirectories, out _);
+                    if (!executables.Contains(nested))
+                        executables.Add(nested);
                 }
 
                 if (executables.Count == 0)

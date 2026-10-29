@@ -328,6 +328,13 @@ namespace QuiverLauncher.Services
                         LinuxCustomLaunchCommand = appElement.TryGetProperty("linuxCustomLaunchCommand", out var linuxCustomElement)
                             ? linuxCustomElement.GetString()
                             : null,
+                        LaunchArguments = appElement.TryGetProperty("launchArguments", out var launchArgsElement)
+                            ? launchArgsElement.GetString()
+                            : null,
+                        LaunchWorkingDirectory = appElement.TryGetProperty("launchWorkingDirectory", out var launchDirElement)
+                            ? launchDirElement.GetString()
+                            : null,
+                        LaunchEnvironment = ParseLaunchEnvironmentProperty(appElement),
                         IsExperimental = false,
                         IsCustom = true,
                         GameManager = gameManager,
@@ -416,6 +423,21 @@ namespace QuiverLauncher.Services
                 return null;
             string? Text(string name) => catalog.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
             return new CatalogSnapshot(Text("name"), Text("project"), Text("appIconUrl"), ParseTagsProperty(catalog));
+        }
+
+        private static Dictionary<string, string> ParseLaunchEnvironmentProperty(JsonElement appElement)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!appElement.TryGetProperty("launchEnvironment", out var envElement) || envElement.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var property in envElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Name))
+                    result[property.Name] = property.Value.GetString() ?? string.Empty;
+            }
+
+            return result;
         }
 
         private static List<string> ParseTagsProperty(JsonElement appElement)
@@ -591,6 +613,17 @@ namespace QuiverLauncher.Services
 
             if (!string.IsNullOrWhiteSpace(app.LinuxCustomLaunchCommand))
                 payload["linuxCustomLaunchCommand"] = app.LinuxCustomLaunchCommand;
+
+            if (!string.IsNullOrWhiteSpace(app.LaunchArguments))
+                payload["launchArguments"] = app.LaunchArguments.Trim();
+
+            if (!string.IsNullOrWhiteSpace(app.LaunchWorkingDirectory))
+                payload["launchWorkingDirectory"] = app.LaunchWorkingDirectory.Trim();
+
+            if (app.LaunchEnvironment is { Count: > 0 })
+                payload["launchEnvironment"] = app.LaunchEnvironment
+                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Key))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
 
             var normalizedTags = TagHelper.NormalizeTags(app.Tags);
             if (normalizedTags.Count > 0)

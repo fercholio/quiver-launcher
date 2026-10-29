@@ -275,9 +275,22 @@ namespace QuiverLauncher.Models
 
         public bool HasLibraryCardTags => LibraryCardTags.Count > 0;
 
+        /// <summary>
+        /// True when this app expects the player to supply their own legally-owned copy of a game
+        /// (a ROM/ISO or base files) — recomps, decomps, ports and emulators do. Drives the
+        /// "needs your own game file" badge on library cards so the player can tell at a glance,
+        /// before launching, which apps will ask for a ROM/ISO. Quiver never provides game files.
+        /// </summary>
+        public bool NeedsOwnBaseFile => BaseFileRequirement.Detect(null, Tags, null).NeedsOwnCopy;
+
+        /// <summary>The explanation shown in the badge's tooltip (empty when no base file is needed).</summary>
+        public string BaseFileRequirementNote => BaseFileRequirement.Detect(null, Tags, null).Note;
+
         public void RefreshLibraryCardTags()
         {
             LibraryCardTags = TagChipHelper.SelectTagsForCardDisplay(Tags, LibraryCardTagMaxLines);
+            OnPropertyChanged(nameof(NeedsOwnBaseFile));
+            OnPropertyChanged(nameof(BaseFileRequirementNote));
         }
 
         public List<string> FilesToAdd { get; set; } = [];
@@ -300,6 +313,25 @@ namespace QuiverLauncher.Models
 
         /// <summary>Per-app custom launch command (placeholders: {exe}, {gamePath}, {exeDir}).</summary>
         public string? LinuxCustomLaunchCommand { get; set; }
+
+        /// <summary>Extra command-line arguments passed to the game's executable on launch (e.g. a renderer
+        /// flag or a mod folder path). Null/empty = none. Persisted in apps.json.</summary>
+        public string? LaunchArguments { get; set; }
+
+        /// <summary>Overrides the working directory the game is started in. Null/empty = the executable's
+        /// own folder (the default). Persisted in apps.json.</summary>
+        public string? LaunchWorkingDirectory { get; set; }
+
+        /// <summary>Extra environment variables set for the game's process on launch. Empty = none.
+        /// Persisted in apps.json.</summary>
+        public Dictionary<string, string> LaunchEnvironment { get; set; } = new(StringComparer.Ordinal);
+
+        /// <summary>True when the player has set any custom launch option for this app.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool HasCustomLaunchOptions =>
+            !string.IsNullOrWhiteSpace(LaunchArguments) ||
+            !string.IsNullOrWhiteSpace(LaunchWorkingDirectory) ||
+            (LaunchEnvironment != null && LaunchEnvironment.Count > 0);
 
         private bool _autoUpdate;
         /// <summary>When true, available updates install automatically without the review prompt.</summary>
@@ -470,6 +502,7 @@ namespace QuiverLauncher.Models
                     DispatchPropertyChanged();
                     DispatchPropertyChanged(nameof(HasMultipleExecutables));
                     DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanOverrideExecutable));
                     DispatchPropertyChanged(nameof(CanLaunchOptions));
                     DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
                 }
@@ -535,6 +568,10 @@ namespace QuiverLauncher.Models
 
         internal Task CatalogPreparation { get; set; } = Task.CompletedTask;
         internal DateTime LastPlayedSortTime { get; set; } = DateTime.MinValue;
+        /// <summary>Cached total play time (seconds) for sorting; set when the play-time file is read.</summary>
+        internal long PlayTimeSortSeconds { get; set; }
+        /// <summary>Cached install time (UTC) for sorting; set when the install folder's date is read.</summary>
+        internal DateTime InstalledSortTime { get; set; } = DateTime.MinValue;
         internal DownloadAssetSelection? DownloadChoices { get; set; }
         internal string? DownloadSelectionContext { get; set; }
         public bool HasMultipleDownloads => DownloadChoices?.NeedsChoice ?? AvailableDownloads?.Count > 1;
@@ -567,6 +604,12 @@ namespace QuiverLauncher.Models
         public bool CanVersionOptions => !IsManuallyManaged && (CanSkipUpdate || CanChangeVersion || IsInstalled);
         public bool CanLaunchOptions =>
             !IsFlatpak && !PlatformCapabilities.IsMobile && (HasExecutableChoice || IsInstalled);
+        /// <summary>Whether to offer "Select Different Executable". Unlike <see cref="HasExecutableChoice"/>
+        /// (which needs more than one candidate), this is true for any installed non-Flatpak desktop app, so
+        /// the player can always re-pick the launch target — e.g. when an installer or the wrong exe was
+        /// auto-selected and keeps re-running on Play (#195/#155/#187).</summary>
+        public bool CanOverrideExecutable =>
+            IsWindowsInstaller || (!IsFlatpak && !PlatformCapabilities.IsMobile && IsInstalled);
         public bool CanToggleAutoUpdate => !IsWindowsInstaller && !IsManuallyManaged;
         public bool CanOpenFolder =>
             !PlatformCapabilities.IsMobile && (IsManuallyManaged || IsInstalled);
@@ -594,7 +637,7 @@ namespace QuiverLauncher.Models
                 if (_isFlatpak == value) return;
                 _isFlatpak = value;
                 foreach (var property in new[] { nameof(IsFlatpak), nameof(CanChangeVersion), nameof(CanLaunchOptions),
-                    nameof(HasExecutableChoice), nameof(HasMultipleExecutables), nameof(CanManageMods), nameof(ShowWindowsRunnerOptions), nameof(InstalledAppRemovalLabel) })
+                    nameof(HasExecutableChoice), nameof(CanOverrideExecutable), nameof(HasMultipleExecutables), nameof(CanManageMods), nameof(ShowWindowsRunnerOptions), nameof(InstalledAppRemovalLabel) })
                     DispatchPropertyChanged(property);
             }
         }
@@ -607,7 +650,7 @@ namespace QuiverLauncher.Models
             {
                 if (_isWindowsInstaller == value) return;
                 _isWindowsInstaller = value;
-                foreach (var property in new[] { nameof(IsWindowsInstaller), nameof(HasExecutableChoice),
+                foreach (var property in new[] { nameof(IsWindowsInstaller), nameof(HasExecutableChoice), nameof(CanOverrideExecutable),
                     nameof(CanLaunchOptions), nameof(CanLocateInstall), nameof(CanManageMods),
                     nameof(CanOpenMods), nameof(InstalledAppRemovalLabel), nameof(CanRemoveInstalledApp),
                     nameof(CanRunWindowsInstaller), nameof(HasMultipleExecutables), nameof(CanToggleAutoUpdate), nameof(ExecutableSelectionLabel) })
@@ -821,6 +864,7 @@ namespace QuiverLauncher.Models
                     DispatchPropertyChanged(nameof(CanOpenFolder));
                     DispatchPropertyChanged(nameof(IsWaitingForFiles));
                     DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanOverrideExecutable));
                     DispatchPropertyChanged(nameof(CanLaunchOptions));
                     DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
                     DispatchPropertyChanged(nameof(IsDownloading));
@@ -996,6 +1040,7 @@ namespace QuiverLauncher.Models
         {
             GameManager = gameManager;
             DispatchPropertyChanged(nameof(HasExecutableChoice));
+            DispatchPropertyChanged(nameof(CanOverrideExecutable));
             DispatchPropertyChanged(nameof(CanLaunchOptions));
             DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
         }
@@ -1198,11 +1243,14 @@ namespace QuiverLauncher.Models
             Directory.CreateDirectory(customIconsDir);
 
             var extension = Path.GetExtension(sourcePath);
-            var fileName = $"{FolderName}_custom{extension}";
+            // A unique file name each time so the image loader treats it as a new image and doesn't serve a
+            // cached bitmap from the previous custom image — that's why replacing one used to need a restart (#209).
+            var fileName = $"{FolderName}_custom_{DateTime.UtcNow.Ticks}{extension}";
             var destinationPath = Path.Combine(customIconsDir, fileName);
 
             try
             {
+                // Remove any previous custom image for this app (the old fixed name and earlier unique ones).
                 if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
                 {
                     ClearImageFromMemory();
@@ -1210,9 +1258,9 @@ namespace QuiverLauncher.Models
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
-
-                    TryDeleteFileWithRetry(CustomIconPath, maxRetries: 3, delayMs: 100);
                 }
+                foreach (var stale in EnumerateCustomIconFiles(customIconsDir))
+                    TryDeleteFileWithRetry(stale, maxRetries: 3, delayMs: 100);
 
                 using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var destStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -1294,29 +1342,48 @@ namespace QuiverLauncher.Models
             if (!Directory.Exists(customIconsDir))
                 return;
 
-            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico" };
-            foreach (var ext in possibleExtensions)
-            {
-                var fileName = $"{FolderName}_custom{ext}";
-                var iconPath = Path.Combine(customIconsDir, fileName);
-                if (File.Exists(iconPath))
-                {
-                    try
-                    {
-                        var attributes = File.GetAttributes(iconPath);
-                        if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                        {
-                            File.SetAttributes(iconPath, attributes & ~FileAttributes.ReadOnly);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
-                    }
+            // Newest first: both the old fixed name "<folder>_custom.ext" and the newer unique
+            // "<folder>_custom_<ticks>.ext" match, so images set by any version still load.
+            var iconPath = EnumerateCustomIconFiles(customIconsDir)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+            if (iconPath == null)
+                return;
 
-                    CustomIconPath = iconPath;
-                    break;
+            try
+            {
+                var attributes = File.GetAttributes(iconPath);
+                if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                {
+                    File.SetAttributes(iconPath, attributes & ~FileAttributes.ReadOnly);
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
+            }
+
+            CustomIconPath = iconPath;
+        }
+
+        // Every custom-image file for this app: the old fixed name and newer cache-busting unique names,
+        // across the supported image extensions.
+        private IEnumerable<string> EnumerateCustomIconFiles(string customIconsDir)
+        {
+            if (string.IsNullOrEmpty(FolderName) || !Directory.Exists(customIconsDir))
+                return [];
+
+            var allowed = new HashSet<string>(
+                [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico"], StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                return Directory.EnumerateFiles(customIconsDir, $"{FolderName}_custom*")
+                    .Where(f => allowed.Contains(Path.GetExtension(f)))
+                    .ToList();
+            }
+            catch
+            {
+                return [];
             }
         }
 
@@ -1874,6 +1941,59 @@ namespace QuiverLauncher.Models
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
             }
+        }
+
+        private const string PlayTimeFileName = "PlayTime.txt";
+
+        /// <summary>Total seconds this app has been played, from its PlayTime.txt (0 if never played or unreadable).</summary>
+        internal static long ReadPlayTimeSeconds(string gamePath)
+        {
+            if (string.IsNullOrEmpty(gamePath))
+                return 0;
+            try
+            {
+                var path = Path.Combine(gamePath, PlayTimeFileName);
+                if (File.Exists(path) &&
+                    long.TryParse(File.ReadAllText(path).Trim(), out var seconds) && seconds >= 0)
+                    return seconds;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read PlayTime.txt at {gamePath}: {ex.Message}");
+            }
+            return 0;
+        }
+
+        /// <summary>Adds a play session's length to the running total, ignoring implausible values.</summary>
+        internal void AddPlayTime(string gamePath, TimeSpan elapsed)
+        {
+            // Skip sessions too short to be a real play (often a launcher stub that hands off and exits) or
+            // absurdly long (the launcher stayed open for days), so the total stays meaningful.
+            if (string.IsNullOrEmpty(gamePath) || elapsed < TimeSpan.FromSeconds(10) || elapsed > TimeSpan.FromDays(1))
+                return;
+            try
+            {
+                if (!Directory.Exists(gamePath))
+                    return;
+                var total = ReadPlayTimeSeconds(gamePath) + (long)elapsed.TotalSeconds;
+                File.WriteAllText(Path.Combine(gamePath, PlayTimeFileName), total.ToString());
+                PlayTimeSortSeconds = total;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to update PlayTime.txt for {Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>Human-readable play time, e.g. "Never played", "47m", "3h 20m".</summary>
+        public static string FormatPlayTime(long seconds)
+        {
+            if (seconds < 60) return seconds <= 0 ? "Never played" : "Less than a minute";
+            var span = TimeSpan.FromSeconds(seconds);
+            var hours = (int)span.TotalHours;
+            var minutes = span.Minutes;
+            if (hours <= 0) return $"{minutes}m";
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
         }
 
         /// <summary>

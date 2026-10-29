@@ -24,7 +24,7 @@
 									   FontWeight="Bold"
 									   Foreground="{DynamicResource ThemeText}"/>
 							<TextBox x:Name="DisplayFilterNameTextBox" Text="{Binding Name, Mode=TwoWay}"
-									 Watermark="Filter name"
+									 PlaceholderText="Filter name"
 									 Foreground="{DynamicResource ThemeText}"
 									 Background="{DynamicResource ThemeBase}"
 									 BorderBrush="{DynamicResource ThemeBorder}"
@@ -36,7 +36,7 @@
 									   FontWeight="SemiBold"
 									   Foreground="{DynamicResource ThemeText}"/>
 							<TextBox x:Name="DisplayFilterTagsTextBox" Text="{Binding Tags, Mode=TwoWay}"
-									 Watermark="Tags (comma-separated, e.g. n64, favorites)"
+									 PlaceholderText="Tags (comma-separated, e.g. n64, favorites)"
 									 Foreground="{DynamicResource ThemeText}"
 									 Background="{DynamicResource ThemeBase}"
 									 BorderBrush="{DynamicResource ThemeBorder}"
@@ -64,7 +64,7 @@
 									   FontWeight="SemiBold"
 									   Foreground="{DynamicResource ThemeText}"/>
 							<TextBox x:Name="DisplayFilterExcludeTagsTextBox" Text="{Binding ExcludeTags, Mode=TwoWay}"
-									 Watermark="Tags to hide (comma-separated, optional, e.g. ai)"
+									 PlaceholderText="Tags to hide (comma-separated, optional, e.g. ai)"
 									 Foreground="{DynamicResource ThemeText}"
 									 Background="{DynamicResource ThemeBase}"
 									 BorderBrush="{DynamicResource ThemeBorder}"

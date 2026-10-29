@@ -46,6 +46,12 @@ namespace QuiverLauncher.Services
         public IReadOnlyList<GameInfo> LibraryApps => _catalogApps.Count > 0 ? _catalogApps : Games.ToArray();
         /// <summary>Session-only library search. Applied after Show scope and tag display filters.</summary>
         public string LibrarySearchText { get; set; } = "";
+        /// <summary>Session-only quick filter by a single project-type tag (e.g. "recomp", "decomp",
+        /// "port", "emulator"). Empty = show all types. Applied with the search and tag display filters.</summary>
+        public string? QuickTypeFilter { get; set; }
+        /// <summary>Session-only quick filter by a collection id. Empty = all collections. Applied with the
+        /// search, type and tag display filters.</summary>
+        public string? QuickCollectionFilter { get; set; }
         public bool HasLibrarySearch => !string.IsNullOrWhiteSpace(LibrarySearchText);
         public bool HasNoLibrarySearchMatches =>
             !IsLibraryEmpty && HasLibrarySearch && Games.Count == 0;
@@ -313,31 +319,44 @@ namespace QuiverLauncher.Services
                     app.RepositoryCheckError = previousCheck.RepositoryCheckError;
             }
 
-            if (!string.IsNullOrEmpty(_appsFolder))
-            {
-                await Task.WhenAll(_catalogApps.Where(app => app != null).Select(async app =>
-                {
-                    try
-                    {
-                        await GameStatusService.CheckStatusAsync(app, _httpClient, _appsFolder, forceUpdateCheck,
-                            checkRemoteVersion: allowNetwork, applyCachedRelease: allowNetwork);
-                        if (!allowNetwork) StartupVersionResolver.Apply(app);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
-                    }
-                }));
-            }
-
+            // Show the library as soon as the app list is read, before any per-app status check. The
+            // cards appear immediately and each one's installed state fills in as its check completes
+            // below, instead of the whole list waiting on the slowest disk read (#190). Status doesn't
+            // affect which apps are visible (scope and tag filters don't depend on it), so showing first
+            // is safe.
             await RebuildVisibleGamesAsync(_settings);
 
-            // The local collection is ready; artwork and online metadata must not extend startup loading UI.
             await RunOnUiThreadAsync(() =>
             {
                 HasLoadedLibrary = true;
                 OnPropertyChanged(nameof(HasLoadedLibrary));
             });
+
+            if (!string.IsNullOrEmpty(_appsFolder))
+            {
+                // Bound how many apps are checked at once. The per-app work is mostly disk I/O (does the
+                // install folder exist, read version/receipt files), so firing it for the whole library at
+                // once thrashes slow storage — a custom install folder on an SD card or a network mount —
+                // and the checks can take a long time on a cold start (#190). A modest limit keeps fast
+                // disks quick while stopping slow ones from being swamped. Each app notifies as it's read,
+                // so its card updates in place.
+                var parallelism = Math.Clamp(Environment.ProcessorCount, 2, 8);
+                await Parallel.ForEachAsync(_catalogApps,
+                    new ParallelOptions { MaxDegreeOfParallelism = parallelism },
+                    async (app, _) =>
+                    {
+                        try
+                        {
+                            await GameStatusService.CheckStatusAsync(app, _httpClient, _appsFolder, forceUpdateCheck,
+                                checkRemoteVersion: allowNetwork, applyCachedRelease: allowNetwork);
+                            if (!allowNetwork) StartupVersionResolver.Apply(app);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
+                        }
+                    });
+            }
 
             await LoadCustomAndCachedIconsAsync(allowDownload: allowNetwork);
         }
@@ -577,6 +596,20 @@ namespace QuiverLauncher.Services
                             filter.ExcludeTags,
                             filter.ExcludeMatchMode));
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(QuickTypeFilter))
+            {
+                var type = QuickTypeFilter.Trim();
+                visibleGames = visibleGames.Where(game =>
+                    game.Tags != null &&
+                    game.Tags.Any(tag => string.Equals(tag?.Trim(), type, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (AppCollections.Find(settings, QuickCollectionFilter) is { } collection)
+            {
+                var members = collection.Members.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                visibleGames = visibleGames.Where(game => members.Contains(game.InstanceKey));
             }
 
             if (!string.IsNullOrWhiteSpace(LibrarySearchText))

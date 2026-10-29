@@ -92,6 +92,14 @@
 			</StackPanel>
 			<!-- "Hide apps in my library" joins the sort here when the title line has room (see ArrangeHideOption). -->
 			<StackPanel x:Name="BrowseSortPanel" Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+				<!-- Reloads the current page for the same search and filters, so there's no need to type in the search and clear it. -->
+				<Button x:Name="BrowseRefreshButton" Classes="options" MinHeight="40" Padding="10,0"
+						VerticalAlignment="Center" IsEnabled="{Binding !IsLoading}"
+						ToolTip.Tip="Refresh" Click="BrowseRefresh_Click">
+					<Path Width="15" Height="15" Stretch="Uniform" VerticalAlignment="Center"
+						  Stroke="{DynamicResource ThemeText}" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round"
+						  Data="M 23,4 L 23,10 L 17,10 M 20.49,15 a 9,9 0 1 1 -2.12,-9.36 L 23,10"/>
+				</Button>
 				<TextBlock x:Name="BrowseSortLabel" Text="Sort by" FontSize="11" VerticalAlignment="Center"
 						   Foreground="{DynamicResource ThemeTextSecondary}"/>
 				<TextBlock x:Name="BrowseRelevantText" Text="Most relevant ↓" FontSize="11" VerticalAlignment="Center"
@@ -104,7 +112,7 @@
 		     two when narrower; see ArrangeFilters). The library option and the buttons for an empty result follow below. -->
 		<Grid x:Name="BrowseFiltersPanel" Grid.Row="1" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,0,30,14">
 			<TextBox x:Name="BrowseSearchTextBox" Grid.Column="0"
-					 Watermark="Search games, projects, or tags…"
+					 PlaceholderText="Search games, projects, or tags…"
 					 MinHeight="40"
 					 FontSize="12"
 					 VerticalContentAlignment="Center"

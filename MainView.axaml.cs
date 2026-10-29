@@ -235,7 +235,10 @@ namespace QuiverLauncher
                 }
             };
             _session.OnShutdown(Library.Dispose);
-            _libraryCustomization = new LibraryCustomizationService(_gameManager, Library, _session, () => StorageProvider, (message, title, question) => ShowMessageBoxAsync(message, title, question));
+            _libraryCustomization = new LibraryCustomizationService(_gameManager, Library, _session, () => StorageProvider, (message, title, question) => ShowMessageBoxAsync(message, title, question))
+            {
+                Metadata = new LibraryMetadataService(_gameManager, _settingsViewModel),
+            };
             _libraryPersistence = new LibraryPersistenceService(_gameManager);
             _libraryActions = new LibraryActions(_gameManager, _libraryPersistence, _settingsViewModel, _session, Library, () => StorageProvider, (message, title, question, cancel) => ShowMessageBoxAsync(message, title, question, cancel), OpenUrl, () =>
             {

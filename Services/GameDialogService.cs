@@ -45,13 +45,17 @@ public static class GameDialogService
         });
     }
 
-    public static async Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath)
+    public static async Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath, string? fallbackFolder = null)
     {
         return await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             var owner = TryGetDesktopMainWindow()
                 ?? throw new InvalidOperationException("Open Quiver's Windows desktop interface to select an executable.");
-            var folder = Path.GetDirectoryName(previousPath);
+            // Open at the previously chosen executable's folder, otherwise the app's own install folder,
+            // so the picker lands where the game actually is instead of a default location (#195).
+            var folder = FirstExistingDirectory(
+                previousPath != null ? Path.GetDirectoryName(previousPath) : null,
+                fallbackFolder);
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = $"Select installed executable for {appName}", AllowMultiple = false,
@@ -60,6 +64,16 @@ public static class GameDialogService
             });
             return files.FirstOrDefault()?.TryGetLocalPath();
         });
+    }
+
+    private static string? FirstExistingDirectory(params string?[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (!string.IsNullOrEmpty(candidate) && Directory.Exists(candidate))
+                return candidate;
+        }
+        return null;
     }
 
     public static bool IsGitHubRateLimitError(Exception ex) => IsRateLimitError(ex);

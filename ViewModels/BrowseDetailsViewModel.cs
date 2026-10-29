@@ -32,8 +32,12 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
     private IReadOnlyList<BrowseReviewLine> _reviews = [];
     private string _reviewsStatus = "";
     private string _error = "";
+    private string? _baseFileNote;
 
     public BrowseItem? Item { get => _item; private set => Set(ref _item, value); }
+    /// <summary>Set when the app needs the player's own copy of a game (ROM/ISO); null otherwise.</summary>
+    public string? BaseFileNote { get => _baseFileNote; private set { if (Set(ref _baseFileNote, value)) Notify(nameof(HasBaseFileNote)); } }
+    public bool HasBaseFileNote => !string.IsNullOrEmpty(BaseFileNote);
     /// <summary>The app as a library entry; null until the catalog says where it comes from.</summary>
     public GameInfo? Entry { get => _entry; private set => Set(ref _entry, value); }
     /// <summary>Who made the app and where it comes from, once its page has loaded.</summary>
@@ -61,6 +65,8 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         Error = "";
         Reviews = [];
         ReviewsStatus = item.App == null ? "" : "Loading reviews…";
+        BaseFileNote = item.App is { } detail && QuiverLauncher.Core.Services.BaseFileRequirement
+            .Detect(detail.ProjectType, detail.Tags, detail.Description) is { NeedsOwnCopy: true } need ? need.Note : null;
         var readme = Readme.OpenAsync(item.Title, "Loading README…", ct => LoadReadmeAsync(item, ct), token);
         if (item.App is { } app)
             await Task.WhenAll(LoadDetailAsync(app, generation, token), LoadReviewsAsync(app, generation, token));
@@ -79,6 +85,7 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         Reviews = [];
         ReviewsStatus = "";
         Error = "";
+        BaseFileNote = null;
     }
 
     public void Dispose() => Close();

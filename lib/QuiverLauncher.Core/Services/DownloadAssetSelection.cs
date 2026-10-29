@@ -66,6 +66,26 @@ public static class DownloadAssetPolicy
     private static readonly Regex DottedVersion = new(@"(?<![0-9.])\d+(?:\.\d+)+(?:[-.]?(?:alpha|beta|rc|pre|preview)(?:[-.]?\d+)?)?(?![0-9])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+    // Build ids a rolling/nightly asset may embed that are NOT the release tag: a git describe short
+    // hash (g1a2b3c), a bare hex commit hash, an ISO or packed date, or a long build number. Used only
+    // by NormalizedAssetKey for the rolling-release checksum match (see InstalledBuild.IsRebuiltIn),
+    // which is already gated by the same tag, a unique match and a differing checksum — so neutralizing
+    // these aggressively there cannot invent a false update. Arch tokens (x64, arm64, win32) are short
+    // and either not hex or not long enough to match, so they are left alone.
+    private static readonly Regex BuildToken = new(
+        @"(?<![0-9A-Za-z])(?:g[0-9a-f]{7,40}|[0-9a-f]{7,40}|\d{4}[-_.]\d{2}[-_.]\d{2}|\d{6,})(?![0-9A-Za-z])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// A stable identity for an asset across builds: its file name with the release tag and any embedded
+    /// version AND build token (git short hash, date stamp, long build number) replaced by one mark, so
+    /// a nightly that renames its asset each build (client-g1a2b3c.exe → client-gdeadbee.exe) still maps
+    /// to the same logical file. More aggressive than <see cref="WithoutVersion"/> on purpose; use it only
+    /// where a differing checksum is also required before anything is offered.
+    /// </summary>
+    public static string NormalizedAssetKey(string name, string? tag) =>
+        BuildToken.Replace(WithoutVersion(name, tag), VersionMark);
+
     /// <summary>The file name with its release's tag (v1.2.0, r23, nightly-2026-10-11) and any dotted version replaced by one mark.</summary>
     internal static string WithoutVersion(string name, string? tag)
     {

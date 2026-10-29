@@ -56,6 +56,14 @@ namespace QuiverLauncher
         public TagFilterMatchMode ExcludeMatchMode { get; set; } = TagFilterMatchMode.Any;
     }
 
+    /// <summary>A player-defined collection (category) of library apps, kept by their instance keys.</summary>
+    public class AppCollection
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public List<string> Members { get; set; } = new List<string>();
+    }
+
     /// <summary>An app list from Quiver Launcher 3.4 and older, read once to keep a player's own list.</summary>
     public class LegacyAppCatalogSource
     {
@@ -93,6 +101,16 @@ namespace QuiverLauncher
         public string GitHubApiToken { get; set; } = string.Empty;
         public string GitLabApiToken { get; set; } = string.Empty;
         public string CodebergApiToken { get; set; } = string.Empty;
+        /// <summary>Optional AI config (OpenAI-compatible LLM + ComfyUI). Blank falls back to QUIVER_* env vars, then defaults.</summary>
+        public string AiLlmUrl { get; set; } = string.Empty;
+        public string AiLlmModel { get; set; } = string.Empty;
+        public string AiLlmApiKey { get; set; } = string.Empty;
+        public string AiComfyUiUrl { get; set; } = string.Empty;
+        public string AiComfyUiCheckpoint { get; set; } = string.Empty;
+        /// <summary>Let the AI pick a game's executable when several are found. The offline heuristic runs regardless.</summary>
+        public bool AiExecutableDetectionEnabled { get; set; } = true;
+        /// <summary>Optional SteamGridDB API key, for fetching community cover art. Blank falls back to QUIVER_STEAMGRIDDB_KEY.</summary>
+        public string SteamGridDbApiKey { get; set; } = string.Empty;
         public string SortBy { get; set; } = "LastPlayed";
         /// <summary>The player's own app list for Browse: a local JSON file or a URL, in the apps.json format.</summary>
         public string CustomAppListLocation { get; set; } = string.Empty;
@@ -138,6 +156,10 @@ namespace QuiverLauncher
         public DesktopWindowPlacement? DesktopWindowPlacement { get; set; }
         public bool CloseAfterLaunch {  get; set; } = false;
         public bool CloseToTray { get; set; }
+        /// <summary>Optional app (e.g. Lossless Scaling) started before a game launches, for in-game upscaling/overlays. Windows only.</summary>
+        public string CompanionAppPath { get; set; } = string.Empty;
+        /// <summary>When true and a companion app is set, it's started (if not already running) before each game launch.</summary>
+        public bool LaunchCompanionBeforeGames { get; set; } = false;
         public int MouseWheelScrollSpeed { get; set; } = 1;
         public bool BackgroundUpdateCheckEnabled { get; set; }
         public int BackgroundUpdateCheckIntervalMinutes { get; set; } = BackgroundUpdateCheckIntervals.DefaultMinutes;
@@ -173,6 +195,8 @@ namespace QuiverLauncher
         public string? ActiveTagDisplayFilterId { get; set; }
         public AppListScope ListScope { get; set; } = AppListScope.AllApps;
         public Dictionary<string, List<string>> UserAppTags { get; set; } = new Dictionary<string, List<string>>();
+        /// <summary>Player-defined collections (categories) of library apps.</summary>
+        public List<AppCollection> Collections { get; set; } = new List<AppCollection>();
         /// <summary>Repository → custom library display name override (when app is not in local apps.json).</summary>
         public Dictionary<string, string> UserAppDisplayNames { get; set; } = new Dictionary<string, string>();
 
@@ -188,6 +212,7 @@ namespace QuiverLauncher
             PinnedFilterTags ??= new List<string>();
             UserAppTags ??= new Dictionary<string, List<string>>();
             UserAppDisplayNames ??= new Dictionary<string, string>();
+            Collections ??= new List<AppCollection>();
             DismissedAnnouncementIds ??= new List<string>();
             GamepadBindings ??= GamepadBindingDefaults.Create();
             GamepadBindingDefaults.EnsureComplete(GamepadBindings);
@@ -238,7 +263,13 @@ namespace QuiverLauncher
             LibraryCardTagMaxLines = TagChipHelper.NormalizeLibraryCardTagMaxLines(LibraryCardTagMaxLines);
         }
 
-        public static AppSettings Load() => SettingsStoreProvider.Default.Load();
+        public static AppSettings Load()
+        {
+            var settings = SettingsStoreProvider.Default.Load();
+            // Keep the AI helpers pointed at the current settings (they take precedence over env vars).
+            AiConfig.Settings = settings;
+            return settings;
+        }
 
         public static void Save(AppSettings settings) => SettingsStoreProvider.Default.Save(settings);
     }

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
@@ -144,6 +145,12 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.AddToSteam:
                     await _actions.AddToSteamAsync(game);
                     break;
+                case LibraryActionKind.ConfigureLaunchOptions:
+                    await _actions.ConfigureLaunchOptionsAsync(game);
+                    break;
+                case LibraryActionKind.ManageCollections:
+                    await _actions.ManageCollectionsAsync(game);
+                    break;
                 case LibraryActionKind.ConfigureWindowsRunner:
                     await _actions.ConfigureRunnerAsync(game);
                     break;
@@ -186,6 +193,21 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.SetCustomIcon:
                     await _customization.SetIconAsync(game);
                     break;
+                case LibraryActionKind.GenerateAiCover:
+                    await _customization.GenerateAiCoverAsync(game);
+                    break;
+                case LibraryActionKind.FetchCoverFromSteamGridDb:
+                    await _customization.FetchCoverFromSteamGridDbAsync(game);
+                    break;
+                case LibraryActionKind.ProvideBaseFile:
+                    await _customization.ProvideBaseFileAsync(game);
+                    break;
+                case LibraryActionKind.UpscaleCover:
+                    await _customization.UpscaleCoverAsync(game);
+                    break;
+                case LibraryActionKind.AutoTag:
+                    await _customization.AutoTagAsync(game);
+                    break;
                 case LibraryActionKind.OpenGitHubPage:
                     await _actions.OpenRepositoryAsync(game);
                     break;
@@ -194,6 +216,21 @@ public partial class LibraryView : UserControl
                         _actions.OpenGameFolder(game);
                     else
                         await _message("Unable to identify the game folder.", "Action Error");
+                    break;
+                case LibraryActionKind.OpenSaveFolder:
+                    if (game != null)
+                        _actions.OpenSaveFolder(game);
+                    else
+                        await _message("Unable to identify the save folder.", "Action Error");
+                    break;
+                case LibraryActionKind.CopySaveFolderPath:
+                    await CopySaveFolderPathAsync(game);
+                    break;
+                case LibraryActionKind.BackUp:
+                    await _actions.BackUpAsync(game);
+                    break;
+                case LibraryActionKind.RestoreBackup:
+                    await _actions.RestoreBackupAsync(game);
                     break;
                 case LibraryActionKind.AutoUpdateMenu:
                     if (game != null)
@@ -232,6 +269,8 @@ public partial class LibraryView : UserControl
     private void AddToSteam_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.AddToSteam);
     private void AutoUpdateMenu_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.AutoUpdateMenu);
     private void ChangeVersion_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ChangeVersion);
+    private void ConfigureLaunchOptions_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ConfigureLaunchOptions);
+    private void ManageCollections_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ManageCollections);
     private void ConfigureWindowsRunner_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ConfigureWindowsRunner);
     private void CreateShortcut_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.CreateShortcut);
     private void DeleteGameFromLibrary_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.DeleteGameFromLibrary);
@@ -253,12 +292,41 @@ public partial class LibraryView : UserControl
     private void LibrarySearchClear_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.LibrarySearchClear);
     private void LocateExistingInstall_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.LocateExistingInstall);
     private void OpenFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenFolder);
+    private void OpenSaveFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenSaveFolder);
+    private void CopySaveFolderPath_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.CopySaveFolderPath);
+    private void BackUp_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.BackUp);
+    private void RestoreBackup_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.RestoreBackup);
+
+    private async Task CopySaveFolderPathAsync(GameInfo? game)
+    {
+        if (game == null)
+        {
+            await _message("Unable to identify the save folder.", "Action Error");
+            return;
+        }
+
+        var path = _actions.ResolveSaveFolder(game);
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (string.IsNullOrWhiteSpace(path) || clipboard == null)
+        {
+            await _message("Unable to copy the save folder path.", "Save Folder");
+            return;
+        }
+
+        await clipboard.SetTextAsync(path);
+        await _message($"Save folder path copied:\n{path}", "Save Folder");
+    }
     private void OpenGitHubPage_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenGitHubPage);
     private void OpenMods_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenMods);
     private void RemoveCustomIcon_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.RemoveCustomIcon);
     private void RemoveGameEntry_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.RemoveGameEntry);
     private void SelectDifferentExecutable_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SelectDifferentExecutable);
     private void SetCustomIcon_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SetCustomIcon);
+    private void GenerateAiCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.GenerateAiCover);
+    private void FetchCoverFromSteamGridDb_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.FetchCoverFromSteamGridDb);
+    private void ProvideBaseFile_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ProvideBaseFile);
+    private void UpscaleCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.UpscaleCover);
+    private void AutoTag_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.AutoTag);
     private void ShowChangelog_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ShowChangelog);
     private void ShowReadme_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ShowReadme);
     private void SkipUpdate_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SkipUpdate);

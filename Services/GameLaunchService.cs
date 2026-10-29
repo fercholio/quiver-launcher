@@ -17,6 +17,8 @@ public static class GameLaunchService
 
         try
         {
+            StartCompanionIfConfigured();
+
             var gamePath = game.GetInstallPath(gamesFolder);
 
             if (FlatpakService.HasReceipt(gamePath))
@@ -66,9 +68,21 @@ public static class GameLaunchService
             if (executables.Count > 1 &&
                 (string.IsNullOrEmpty(game.SelectedExecutable) || !executables.Contains(game.SelectedExecutable)))
             {
-                game.SelectedExecutable = null;
-                game.NotifyMultipleExecutablesChanged();
-                return false;
+                // Try to pick the game's executable automatically (heuristic first, then the LLM if it
+                // isn't sure) so the player isn't asked to hunt for it. Only prompt when nothing is confident.
+                var autoPick = await ExecutableAutoSelector.TrySelectAsync(game.Name, executables, CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(autoPick) && executables.Contains(autoPick))
+                {
+                    game.SelectedExecutable = autoPick;
+                    game.SaveSelectedExecutable(autoPick, gamesFolder);
+                }
+                else
+                {
+                    game.SelectedExecutable = null;
+                    game.NotifyMultipleExecutablesChanged();
+                    return false;
+                }
             }
 
             var executablePath = !string.IsNullOrEmpty(game.SelectedExecutable) &&
@@ -145,6 +159,10 @@ public static class GameLaunchService
             // No-ops unless Quiver itself is running inside a Flatpak sandbox.
             HostProcessEnvironment.RouteToHostIfSandboxed(startInfo);
 
+            // The player's own launch options (extra args, env vars, working-dir override) go on last,
+            // so they layer over the runner/platform setup above.
+            ApplyUserLaunchOptions(startInfo, game);
+
             var startInfoEnvAfter = startInfo.UseShellExecute
                 ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 : LaunchDebugReport.SnapshotStartInfoEnvironment(startInfo);
@@ -203,6 +221,7 @@ public static class GameLaunchService
                 liveProcEnviron);
 
             game.RaiseGameProcessStarted(gameProcess);
+            TrackPlayTime(game, gamePath, gameProcess);
 
             if (game.GameManager != null && Avalonia.Application.Current != null)
                 game.GameManager.OnPropertyChanged(nameof(GameManager.Games));
@@ -216,6 +235,50 @@ public static class GameLaunchService
                 await GameDialogService.ShowMessageBoxAsync($"Error launching {game.Name}: {ex.Message}", "Launch Error");
 
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Layers the player's per-game launch options onto the prepared <paramref name="startInfo"/>:
+    /// a working-directory override, extra command-line arguments, and extra environment variables.
+    /// Arguments go onto whichever form the start info already uses (the ArgumentList for the runner /
+    /// macOS paths, otherwise the Arguments string for the Windows shell path). Environment variables
+    /// are only honoured when not using ShellExecute, so we turn ShellExecute off when the player set any.
+    /// </summary>
+    internal static void ApplyUserLaunchOptions(ProcessStartInfo startInfo, GameInfo game)
+    {
+        var workingDir = game.LaunchWorkingDirectory?.Trim();
+        if (!string.IsNullOrEmpty(workingDir) && Directory.Exists(workingDir))
+            startInfo.WorkingDirectory = workingDir;
+
+        if (!string.IsNullOrWhiteSpace(game.LaunchArguments))
+        {
+            var raw = game.LaunchArguments.Trim();
+            if (startInfo.ArgumentList.Count > 0)
+            {
+                List<string> tokens;
+                try { tokens = LaunchOptions.SplitArguments(raw); }
+                catch (FormatException) { tokens = [raw]; }
+                foreach (var token in tokens)
+                    startInfo.ArgumentList.Add(token);
+            }
+            else
+            {
+                startInfo.Arguments = string.IsNullOrEmpty(startInfo.Arguments)
+                    ? raw
+                    : $"{startInfo.Arguments} {raw}";
+            }
+        }
+
+        if (game.LaunchEnvironment is { Count: > 0 })
+        {
+            if (startInfo.UseShellExecute)
+                startInfo.UseShellExecute = false;
+            foreach (var pair in game.LaunchEnvironment)
+            {
+                if (!string.IsNullOrWhiteSpace(pair.Key))
+                    startInfo.Environment[pair.Key] = pair.Value;
+            }
         }
     }
 
@@ -362,6 +425,61 @@ public static class GameLaunchService
             hasExited,
             exitCode);
         LaunchDebugReport.TryWrite(gamePath, report);
+    }
+
+    // Starts the configured companion app (e.g. Lossless Scaling) before a game launches, so an in-game
+    // upscaler/overlay is already running. Windows only, best effort, and skipped if it's already running.
+    private static void StartCompanionIfConfigured()
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+            var settings = AppSettings.Load();
+            if (!settings.LaunchCompanionBeforeGames)
+                return;
+            var path = settings.CompanionAppPath?.Trim();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return;
+
+            var name = Path.GetFileNameWithoutExtension(path);
+            if (Process.GetProcessesByName(name).Length > 0)
+                return;
+
+            Process.Start(new ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(path) ?? "",
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Could not start companion app: {ex.Message}");
+        }
+    }
+
+    // Records how long the launched process ran, as a best-effort play time. Fire-and-forget: it waits
+    // for the game to exit, then adds the elapsed time to the app's running total. Sessions that are too
+    // short or implausibly long are ignored by AddPlayTime (e.g. a stub launcher that exits immediately).
+    private static void TrackPlayTime(GameInfo game, string gamePath, Process gameProcess)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var start = DateTime.UtcNow;
+                var tracked = HostGameSession.ExitTask(gameProcess);
+                if (tracked != null)
+                    await tracked.ConfigureAwait(false);
+                else
+                    await gameProcess.WaitForExitAsync().ConfigureAwait(false);
+                game.AddPlayTime(gamePath, DateTime.UtcNow - start);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Play-time tracking failed for {game.Name}: {ex.Message}");
+            }
+        });
     }
 
     static void ScheduleLaunchExitFollowUp(

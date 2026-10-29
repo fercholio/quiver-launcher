@@ -1,4 +1,5 @@
 using Avalonia.Platform.Storage;
+using System.IO.Compression;
 using QuiverLauncher.Core.Models;
 using QuiverLauncher.Core.Services;
 using QuiverLauncher.Models;
@@ -82,6 +83,16 @@ public sealed class LibraryActions
                 if (receipt != null && Directory.Exists(FlatpakService.DataDirectory(receipt)))
                     folderPath = FlatpakService.DataDirectory(receipt);
             }
+            else if (WindowsInstallerService.HasReceipt(folderPath))
+            {
+                // An installer app lives under Program Files, not in Quiver's folder, so open where it
+                // actually installed: the chosen executable's folder, else a best guess in Program Files.
+                var installerReceipt = WindowsInstallerService.ReadReceipt(folderPath);
+                var exeDir = Path.GetDirectoryName(installerReceipt?.ExecutablePath ?? "");
+                folderPath = !string.IsNullOrEmpty(exeDir) && Directory.Exists(exeDir)
+                    ? exeDir
+                    : WindowsInstallerService.GuessInstalledFolder(game.Name) ?? folderPath;
+            }
             if (string.IsNullOrWhiteSpace(folderPath))
             {
                 _ = _session.RunAsync(() => ShowMessageBoxAsync("Unable to identify the game folder.", "Action Error"));
@@ -96,6 +107,155 @@ public sealed class LibraryActions
         {
             _ = _session.RunAsync(() => ShowMessageBoxAsync($"Failed to open folder: {ex.Message}", "Action Error"));
         }
+    }
+
+    /// <summary>
+    /// Best-guess save-data folder for <paramref name="game"/>: the first candidate from
+    /// <see cref="SaveFolderLocator"/> that exists on disk, else the install folder. Never null when the
+    /// app has an install folder.
+    /// </summary>
+    public string? ResolveSaveFolder(GameInfo game)
+    {
+        var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+        if (string.IsNullOrWhiteSpace(installPath))
+            return null;
+
+        string? HomePath(Environment.SpecialFolder folder)
+        {
+            try { return Environment.GetFolderPath(folder); } catch { return null; }
+        }
+
+        var userProfile = HomePath(Environment.SpecialFolder.UserProfile);
+        var roots = new SaveFolderLocator.UserRoots(
+            HomePath(Environment.SpecialFolder.ApplicationData),
+            HomePath(Environment.SpecialFolder.LocalApplicationData),
+            HomePath(Environment.SpecialFolder.MyDocuments),
+            string.IsNullOrWhiteSpace(userProfile) ? null : Path.Combine(userProfile, "Saved Games"));
+
+        foreach (var candidate in SaveFolderLocator.Candidates(installPath, game.Name, roots))
+        {
+            try { if (Directory.Exists(candidate)) return candidate; } catch { /* unreadable: skip */ }
+        }
+
+        return installPath;
+    }
+
+    public void OpenSaveFolder(GameInfo game)
+    {
+        if (RefuseKiosk() || _session.IsClosed) return;
+        try
+        {
+            var folder = ResolveSaveFolder(game);
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                _ = _session.RunAsync(() => ShowMessageBoxAsync("Unable to identify the save folder for this app.", "Save Folder"));
+                return;
+            }
+            OpenUrl(folder);
+        }
+        catch (Exception ex)
+        {
+            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Failed to open the save folder: {ex.Message}", "Save Folder"));
+        }
+    }
+
+    public async Task BackUpAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.FolderName))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+            var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+            if (string.IsNullOrWhiteSpace(installPath) || !Directory.Exists(installPath))
+            {
+                await ShowMessageBoxAsync("This app has no install folder to back up.", "Back Up");
+                return;
+            }
+
+            var suggested = InstallBackup.SuggestFileName(game.Name, game.InstalledVersion, DateOnly.FromDateTime(DateTime.Now));
+            var file = await _storage().SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = $"Back up {game.Name}",
+                SuggestedFileName = suggested,
+                DefaultExtension = "zip",
+                FileTypeChoices = [new FilePickerFileType("Zip archive") { Patterns = ["*.zip"] }],
+            }).WaitAsync(_session.Token);
+            if (file == null || _session.IsClosed)
+                return;
+
+            var dest = file.Path.LocalPath;
+            try
+            {
+                game.IsLoading = true;
+                await Task.Run(() =>
+                {
+                    if (File.Exists(dest)) File.Delete(dest);
+                    ZipFile.CreateFromDirectory(installPath, dest, CompressionLevel.Optimal, includeBaseDirectory: false);
+                }, _session.Token);
+                await ShowMessageBoxAsync($"Backed up {game.Name} to:\n{dest}", "Backup Complete");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Backup failed: {ex.Message}", "Back Up");
+            }
+            finally { game.IsLoading = false; }
+        });
+    }
+
+    public async Task RestoreBackupAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.FolderName))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+            var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+            if (string.IsNullOrWhiteSpace(installPath))
+            {
+                await ShowMessageBoxAsync("This app has no install folder to restore into.", "Restore Backup");
+                return;
+            }
+
+            var files = await _storage().OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = $"Restore {game.Name} from backup",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Zip archive") { Patterns = ["*.zip"] }],
+            }).WaitAsync(_session.Token);
+            if (files == null || files.Count == 0 || _session.IsClosed)
+                return;
+            var src = files[0].Path.LocalPath;
+
+            if (!await ShowMessageBoxAsync(
+                    $"Restore {game.Name} from this backup?\n\nFiles in the install folder with the same names will be overwritten.",
+                    "Restore Backup", isQuestion: true, preferCancelDefault: true) || _session.IsClosed)
+                return;
+
+            try
+            {
+                game.IsLoading = true;
+                await Task.Run(() =>
+                {
+                    Directory.CreateDirectory(installPath);
+                    ZipFile.ExtractToDirectory(src, installPath, overwriteFiles: true);
+                }, _session.Token);
+                await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder, checkRemoteVersion: false);
+                Changed();
+                await ShowMessageBoxAsync($"Restored {game.Name} from the backup.", "Restore Complete");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Restore failed: {ex.Message}", "Restore Backup");
+            }
+            finally { game.IsLoading = false; }
+        });
     }
 
     public async Task ConfigureRunnerAsync(GameInfo? game)
@@ -136,6 +296,84 @@ public sealed class LibraryActions
             catch (Exception ex)
             {
                 await ShowMessageBoxAsync($"Failed to save Windows runner settings: {ex.Message}", "Windows Runner");
+            }
+        });
+    }
+
+    public async Task ManageCollectionsAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.InstanceKey))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+
+            var settings = _settingsModel.Current;
+            settings.EnsureInitialized();
+            var key = game.InstanceKey;
+            var dialog = new QuiverLauncher.Views.CollectionsDialog(
+                game.DisplayName ?? game.Name ?? "this app",
+                settings.Collections,
+                collection => AppCollections.IsMember(collection, key));
+            await GameDialogService.ShowWindowAsync(dialog, _session.Token);
+            if (!dialog.Saved || _session.IsClosed)
+                return;
+
+            foreach (var (collectionId, member) in dialog.Membership)
+                if (AppCollections.Find(settings, collectionId) is { } collection)
+                    AppCollections.SetMember(collection, key, member);
+
+            foreach (var name in dialog.NewCollectionNames)
+                AppCollections.SetMember(AppCollections.Create(settings, name), key, true);
+
+            _settingsModel.SaveCurrent();
+            _gameManager.ApplyTagDisplayFilter(settings);
+            Changed();
+        });
+    }
+
+    public async Task ConfigureLaunchOptionsAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || (string.IsNullOrWhiteSpace(game.FolderName) && string.IsNullOrWhiteSpace(game.InstallPath)))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+
+            try
+            {
+                var dialog = new QuiverLauncher.Views.LaunchOptionsDialog(
+                    game.Name ?? "this app",
+                    game.LaunchArguments,
+                    game.LaunchWorkingDirectory,
+                    game.LaunchEnvironment);
+                await GameDialogService.ShowWindowAsync(dialog, _session.Token);
+                if (!dialog.Saved || _session.IsClosed)
+                    return;
+
+                game.LaunchArguments = string.IsNullOrWhiteSpace(dialog.Arguments) ? null : dialog.Arguments;
+                game.LaunchWorkingDirectory = string.IsNullOrWhiteSpace(dialog.WorkingDirectory) ? null : dialog.WorkingDirectory;
+                game.LaunchEnvironment = LaunchOptions.ParseEnvironment(dialog.EnvironmentText);
+
+                var allGames = await LoadGamesFromJsonAsync();
+                var matchingGame = FindMatchingSavedApp(allGames, game);
+                if (matchingGame != null)
+                {
+                    matchingGame.LaunchArguments = game.LaunchArguments;
+                    matchingGame.LaunchWorkingDirectory = game.LaunchWorkingDirectory;
+                    matchingGame.LaunchEnvironment = game.LaunchEnvironment;
+                    await SaveGamesToJsonAsync(allGames);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to save launch options: {ex.Message}", "Launch Options");
             }
         });
     }
@@ -355,6 +593,8 @@ public sealed class LibraryActions
 
                 games.Remove(gameToRemove);
                 await SaveGamesToJsonAsync(games);
+                if (AppCollections.RemoveFromAll(_settings, game.InstanceKey))
+                    _settingsModel.SaveCurrent();
                 Telemetry.Current.Track("app_removed", Telemetry.AppRef(game));
                 // Drop only Quiver's link; Windows continues to own the installed application.
                 var metadataPath = game.GetInstallPath(_gameManager.GamesFolder);

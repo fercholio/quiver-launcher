@@ -76,7 +76,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameProjectTextBox" Text="{Binding Project, Mode=TwoWay}"
-											 Watermark="Team / project / author (optional)"
+											 PlaceholderText="Team / project / author (optional)"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -89,7 +89,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameCustomDisplayNameTextBox" Text="{Binding CustomDisplayName, Mode=TwoWay}"
-											 Watermark="Overrides library name style when set"
+											 PlaceholderText="Overrides library name style when set"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -141,7 +141,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameReleaseAssetFilterTextBox" IsVisible="{Binding ShowRepository}" Text="{Binding ReleaseAssetFilter, Mode=TwoWay}"
-											 Watermark="If this repo ships more than one game, text that appears only in this game’s filenames (e.g. EXIT1, or *portable*x64* with wildcards)"
+											 PlaceholderText="If this repo ships more than one game, text that appears only in this game’s filenames (e.g. EXIT1, or *portable*x64* with wildcards)"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -166,7 +166,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameTagsTextBox" Text="{Binding Tags, Mode=TwoWay}"
-											 Watermark="e.g. n64, recomp"
+											 PlaceholderText="e.g. n64, recomp"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -194,7 +194,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameFilesToAddTextBox" Text="{Binding FilesToAdd, Mode=TwoWay}"
-											 Watermark="e.g. portable.txt"
+											 PlaceholderText="e.g. portable.txt"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -207,7 +207,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameModsPathTextBox" Text="{Binding ModsPath, Mode=TwoWay}"
-											 Watermark="e.g. mods"
+											 PlaceholderText="e.g. mods"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"
@@ -225,7 +225,7 @@
 											   FontWeight="SemiBold"
 											   Foreground="{DynamicResource ThemeText}"/>
 									<TextBox x:Name="NewGameModsSourcesTextBox" Text="{Binding ModsSources, Mode=TwoWay}"
-											 Watermark="Thunderstore URL/slug or GameBanana mods/games/{id} (one per line)"
+											 PlaceholderText="Thunderstore URL/slug or GameBanana mods/games/{id} (one per line)"
 											 Foreground="{DynamicResource ThemeText}"
 											 Background="{DynamicResource ThemeBase}"
 											 BorderBrush="{DynamicResource ThemeBorder}"

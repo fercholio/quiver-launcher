@@ -252,7 +252,13 @@
 										<TextBlock x:Name="BrowseDetailsVerifiedText" FontSize="13" Foreground="#4ade80" VerticalAlignment="Center"/>
 									</StackPanel>
 								</WrapPanel>
-								<WrapPanel x:Name="BrowseDetailsActions" Orientation="Horizontal" Margin="0,12,0,0">
+								<Border IsVisible="{Binding HasBaseFileNote}" Margin="0,12,0,0" Padding="12,10" CornerRadius="6" Background="{DynamicResource ThemeLighter}" BorderBrush="#d9a441" BorderThickness="1">
+										<StackPanel Orientation="Horizontal" Spacing="8">
+											<TextBlock Text="&#x26A0;" FontSize="14" Foreground="#d9a441" VerticalAlignment="Top"/>
+											<TextBlock Text="{Binding BaseFileNote}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource ThemeText}" MaxWidth="560"/>
+										</StackPanel>
+									</Border>
+									<WrapPanel x:Name="BrowseDetailsActions" Orientation="Horizontal" Margin="0,12,0,0">
 									<Button x:Name="BrowseDetailsAddButton" Classes="options catalog-review-add" Content="Add to library"
 											FontSize="13" Padding="18,8" MinWidth="160" Margin="0,0,10,6" Click="Add_Click"/>
 									<Button x:Name="BrowseDetailsRemoveButton" Classes="options catalog-remove-from-library" Content="Remove from library"
