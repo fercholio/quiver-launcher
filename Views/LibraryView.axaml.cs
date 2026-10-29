@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
@@ -213,6 +214,15 @@ public partial class LibraryView : UserControl
                     else
                         await _message("Unable to identify the game folder.", "Action Error");
                     break;
+                case LibraryActionKind.OpenSaveFolder:
+                    if (game != null)
+                        _actions.OpenSaveFolder(game);
+                    else
+                        await _message("Unable to identify the save folder.", "Action Error");
+                    break;
+                case LibraryActionKind.CopySaveFolderPath:
+                    await CopySaveFolderPathAsync(game);
+                    break;
                 case LibraryActionKind.AutoUpdateMenu:
                     if (game != null)
                         await _autoUpdate(game);
@@ -272,6 +282,28 @@ public partial class LibraryView : UserControl
     private void LibrarySearchClear_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.LibrarySearchClear);
     private void LocateExistingInstall_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.LocateExistingInstall);
     private void OpenFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenFolder);
+    private void OpenSaveFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenSaveFolder);
+    private void CopySaveFolderPath_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.CopySaveFolderPath);
+
+    private async Task CopySaveFolderPathAsync(GameInfo? game)
+    {
+        if (game == null)
+        {
+            await _message("Unable to identify the save folder.", "Action Error");
+            return;
+        }
+
+        var path = _actions.ResolveSaveFolder(game);
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (string.IsNullOrWhiteSpace(path) || clipboard == null)
+        {
+            await _message("Unable to copy the save folder path.", "Save Folder");
+            return;
+        }
+
+        await clipboard.SetTextAsync(path);
+        await _message($"Save folder path copied:\n{path}", "Save Folder");
+    }
     private void OpenGitHubPage_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenGitHubPage);
     private void OpenMods_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenMods);
     private void RemoveCustomIcon_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.RemoveCustomIcon);

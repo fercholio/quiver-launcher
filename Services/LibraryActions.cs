@@ -108,6 +108,56 @@ public sealed class LibraryActions
         }
     }
 
+    /// <summary>
+    /// Best-guess save-data folder for <paramref name="game"/>: the first candidate from
+    /// <see cref="SaveFolderLocator"/> that exists on disk, else the install folder. Never null when the
+    /// app has an install folder.
+    /// </summary>
+    public string? ResolveSaveFolder(GameInfo game)
+    {
+        var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+        if (string.IsNullOrWhiteSpace(installPath))
+            return null;
+
+        string? HomePath(Environment.SpecialFolder folder)
+        {
+            try { return Environment.GetFolderPath(folder); } catch { return null; }
+        }
+
+        var userProfile = HomePath(Environment.SpecialFolder.UserProfile);
+        var roots = new SaveFolderLocator.UserRoots(
+            HomePath(Environment.SpecialFolder.ApplicationData),
+            HomePath(Environment.SpecialFolder.LocalApplicationData),
+            HomePath(Environment.SpecialFolder.MyDocuments),
+            string.IsNullOrWhiteSpace(userProfile) ? null : Path.Combine(userProfile, "Saved Games"));
+
+        foreach (var candidate in SaveFolderLocator.Candidates(installPath, game.Name, roots))
+        {
+            try { if (Directory.Exists(candidate)) return candidate; } catch { /* unreadable: skip */ }
+        }
+
+        return installPath;
+    }
+
+    public void OpenSaveFolder(GameInfo game)
+    {
+        if (RefuseKiosk() || _session.IsClosed) return;
+        try
+        {
+            var folder = ResolveSaveFolder(game);
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                _ = _session.RunAsync(() => ShowMessageBoxAsync("Unable to identify the save folder for this app.", "Save Folder"));
+                return;
+            }
+            OpenUrl(folder);
+        }
+        catch (Exception ex)
+        {
+            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Failed to open the save folder: {ex.Message}", "Save Folder"));
+        }
+    }
+
     public async Task ConfigureRunnerAsync(GameInfo? game)
     {
         if (RefuseKiosk()) return;

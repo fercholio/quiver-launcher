@@ -29,6 +29,14 @@
 												  Click="OpenFolder_Click"
 												  IsVisible="{Binding CanOpenFolder}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Open Save Folder"
+												  Click="OpenSaveFolder_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Copy Save Folder Path"
+												  Click="CopySaveFolderPath_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Versions"
 												  IsVisible="{Binding CanVersionOptions}">
 											<MenuItem Header="Change Version"
