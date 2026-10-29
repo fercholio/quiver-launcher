@@ -215,6 +215,7 @@ public static class GameLaunchService
                 liveProcEnviron);
 
             game.RaiseGameProcessStarted(gameProcess);
+            TrackPlayTime(game, gamePath, gameProcess);
 
             if (game.GameManager != null && Avalonia.Application.Current != null)
                 game.GameManager.OnPropertyChanged(nameof(GameManager.Games));
@@ -374,6 +375,30 @@ public static class GameLaunchService
             hasExited,
             exitCode);
         LaunchDebugReport.TryWrite(gamePath, report);
+    }
+
+    // Records how long the launched process ran, as a best-effort play time. Fire-and-forget: it waits
+    // for the game to exit, then adds the elapsed time to the app's running total. Sessions that are too
+    // short or implausibly long are ignored by AddPlayTime (e.g. a stub launcher that exits immediately).
+    private static void TrackPlayTime(GameInfo game, string gamePath, Process gameProcess)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var start = DateTime.UtcNow;
+                var tracked = HostGameSession.ExitTask(gameProcess);
+                if (tracked != null)
+                    await tracked.ConfigureAwait(false);
+                else
+                    await gameProcess.WaitForExitAsync().ConfigureAwait(false);
+                game.AddPlayTime(gamePath, DateTime.UtcNow - start);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Play-time tracking failed for {game.Name}: {ex.Message}");
+            }
+        });
     }
 
     static void ScheduleLaunchExitFollowUp(

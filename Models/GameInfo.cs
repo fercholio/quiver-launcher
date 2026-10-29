@@ -535,6 +535,8 @@ namespace QuiverLauncher.Models
 
         internal Task CatalogPreparation { get; set; } = Task.CompletedTask;
         internal DateTime LastPlayedSortTime { get; set; } = DateTime.MinValue;
+        /// <summary>Cached total play time (seconds) for sorting; set when the play-time file is read.</summary>
+        internal long PlayTimeSortSeconds { get; set; }
         internal DownloadAssetSelection? DownloadChoices { get; set; }
         internal string? DownloadSelectionContext { get; set; }
         public bool HasMultipleDownloads => DownloadChoices?.NeedsChoice ?? AvailableDownloads?.Count > 1;
@@ -1896,6 +1898,59 @@ namespace QuiverLauncher.Models
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
             }
+        }
+
+        private const string PlayTimeFileName = "PlayTime.txt";
+
+        /// <summary>Total seconds this app has been played, from its PlayTime.txt (0 if never played or unreadable).</summary>
+        internal static long ReadPlayTimeSeconds(string gamePath)
+        {
+            if (string.IsNullOrEmpty(gamePath))
+                return 0;
+            try
+            {
+                var path = Path.Combine(gamePath, PlayTimeFileName);
+                if (File.Exists(path) &&
+                    long.TryParse(File.ReadAllText(path).Trim(), out var seconds) && seconds >= 0)
+                    return seconds;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to read PlayTime.txt at {gamePath}: {ex.Message}");
+            }
+            return 0;
+        }
+
+        /// <summary>Adds a play session's length to the running total, ignoring implausible values.</summary>
+        internal void AddPlayTime(string gamePath, TimeSpan elapsed)
+        {
+            // Skip sessions too short to be a real play (often a launcher stub that hands off and exits) or
+            // absurdly long (the launcher stayed open for days), so the total stays meaningful.
+            if (string.IsNullOrEmpty(gamePath) || elapsed < TimeSpan.FromSeconds(10) || elapsed > TimeSpan.FromDays(1))
+                return;
+            try
+            {
+                if (!Directory.Exists(gamePath))
+                    return;
+                var total = ReadPlayTimeSeconds(gamePath) + (long)elapsed.TotalSeconds;
+                File.WriteAllText(Path.Combine(gamePath, PlayTimeFileName), total.ToString());
+                PlayTimeSortSeconds = total;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to update PlayTime.txt for {Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>Human-readable play time, e.g. "Never played", "47m", "3h 20m".</summary>
+        public static string FormatPlayTime(long seconds)
+        {
+            if (seconds < 60) return seconds <= 0 ? "Never played" : "Less than a minute";
+            var span = TimeSpan.FromSeconds(seconds);
+            var hours = (int)span.TotalHours;
+            var minutes = span.Minutes;
+            if (hours <= 0) return $"{minutes}m";
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
         }
 
         /// <summary>

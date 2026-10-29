@@ -41,6 +41,10 @@ public class GameGridViewModel
                 .OrderByDescending(g => GetLastPlayedTime(g, gamesFolder))
                 .ThenBy(NameKey, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
+            "MostPlayed" => list
+                .OrderByDescending(g => GetPlayTimeSeconds(g, gamesFolder))
+                .ThenBy(NameKey, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             _ => list
                 .OrderBy(NameKey, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
@@ -91,6 +95,21 @@ public class GameGridViewModel
         return game.LastPlayedSortTime = DateTime.MinValue;
     }
 
+    public static long GetPlayTimeSeconds(GameInfo game, string gamesFolder)
+    {
+        if (string.IsNullOrEmpty(game.FolderName))
+            return game.PlayTimeSortSeconds = 0;
+        try
+        {
+            return game.PlayTimeSortSeconds = GameInfo.ReadPlayTimeSeconds(game.GetInstallPath(gamesFolder));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to read PlayTime for {game.Name}: {ex.Message}");
+            return game.PlayTimeSortSeconds = 0;
+        }
+    }
+
     public static int CompareForInsertion(GameInfo left, GameInfo right, string mode, bool ignoreArticles)
     {
         string Name(GameInfo g)
@@ -103,6 +122,7 @@ public class GameGridViewModel
             "Installed" => right.IsInstalled.CompareTo(left.IsInstalled),
             "NotInstalled" => left.IsInstalled.CompareTo(right.IsInstalled),
             "LastPlayed" => right.LastPlayedSortTime.CompareTo(left.LastPlayedSortTime),
+            "MostPlayed" => right.PlayTimeSortSeconds.CompareTo(left.PlayTimeSortSeconds),
             _ => 0,
         };
         return primary != 0 ? primary : (mode == "NameDesc" ? -1 : 1) *
