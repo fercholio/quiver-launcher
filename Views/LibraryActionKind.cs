@@ -9,6 +9,7 @@ public enum LibraryActionKind
     ChangeVersion,
     ConfigureLaunchOptions,
     ConfigureWindowsRunner,
+    ManageCollections,
     CreateShortcut,
     DeleteGameFromLibrary,
     EditCustomDisplayNameMenu,

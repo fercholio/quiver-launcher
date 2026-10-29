@@ -49,6 +49,9 @@ namespace QuiverLauncher.Services
         /// <summary>Session-only quick filter by a single project-type tag (e.g. "recomp", "decomp",
         /// "port", "emulator"). Empty = show all types. Applied with the search and tag display filters.</summary>
         public string? QuickTypeFilter { get; set; }
+        /// <summary>Session-only quick filter by a collection id. Empty = all collections. Applied with the
+        /// search, type and tag display filters.</summary>
+        public string? QuickCollectionFilter { get; set; }
         public bool HasLibrarySearch => !string.IsNullOrWhiteSpace(LibrarySearchText);
         public bool HasNoLibrarySearchMatches =>
             !IsLibraryEmpty && HasLibrarySearch && Games.Count == 0;
@@ -601,6 +604,12 @@ namespace QuiverLauncher.Services
                 visibleGames = visibleGames.Where(game =>
                     game.Tags != null &&
                     game.Tags.Any(tag => string.Equals(tag?.Trim(), type, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (AppCollections.Find(settings, QuickCollectionFilter) is { } collection)
+            {
+                var members = collection.Members.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                visibleGames = visibleGames.Where(game => members.Contains(game.InstanceKey));
             }
 
             if (!string.IsNullOrWhiteSpace(LibrarySearchText))

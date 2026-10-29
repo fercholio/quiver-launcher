@@ -28,6 +28,7 @@ public partial class LibraryToolbarView : UserControl
         InitializeComponent();
         GamepadComboBoxNavigation.Attach(SortByComboBox);
         GamepadComboBoxNavigation.Attach(TypeFilterComboBox);
+        GamepadComboBoxNavigation.Attach(CollectionFilterComboBox);
         LibrarySearchTextBox.LostFocus += (sender, e) => SearchLostFocus?.Invoke(sender, e);
     }
 
@@ -37,6 +38,41 @@ public partial class LibraryToolbarView : UserControl
         _session = session;
         _save = save;
         DataContext = model;
+        RefreshCollections();
+    }
+
+    private bool _collectionsUpdating;
+
+    /// <summary>Rebuilds the collection filter's items from the player's collections, keeping the selection
+    /// when it still exists. Call after collections change so the new one is selectable without a relaunch.</summary>
+    public void RefreshCollections()
+    {
+        if (_model == null)
+            return;
+        _collectionsUpdating = true;
+        try
+        {
+            var selected = (CollectionFilterComboBox.SelectedItem as ComboBoxItem)?.Tag as string
+                ?? _model.QuickCollection ?? "";
+            var items = new List<ComboBoxItem> { new() { Content = "All collections", Tag = "" } };
+            items.AddRange(_model.Collections.Select(c => new ComboBoxItem { Content = c.Name, Tag = c.Id }));
+            CollectionFilterComboBox.ItemsSource = items;
+            CollectionFilterComboBox.SelectedItem =
+                items.FirstOrDefault(i => (i.Tag as string) == selected) ?? items[0];
+        }
+        finally { _collectionsUpdating = false; }
+    }
+
+    private void CollectionFilterComboBox_DropDownOpened(object? sender, EventArgs e) => RefreshCollections();
+
+    private void CollectionFilterComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        PreferredSizeChanged?.Invoke();
+        if (_collectionsUpdating || _session == null || _session.IsClosed || e.AddedItems.Count == 0)
+            return;
+        if (CollectionFilterComboBox.SelectedItem is not ComboBoxItem { Tag: string id })
+            return;
+        _model.SetQuickCollectionFilter(id);
     }
 
     public void ClearSearch() => LibrarySearchTextBox.Text = "";
@@ -71,6 +107,7 @@ public partial class LibraryToolbarView : UserControl
         LibrarySearchTextBox,
         LibrarySearchClearButton,
         AddNewEntryButton,
+        CollectionFilterComboBox,
         TypeFilterComboBox,
         SortByComboBox
     }

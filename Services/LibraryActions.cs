@@ -200,6 +200,41 @@ public sealed class LibraryActions
         });
     }
 
+    public async Task ManageCollectionsAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.InstanceKey))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+
+            var settings = _settingsModel.Current;
+            settings.EnsureInitialized();
+            var key = game.InstanceKey;
+            var dialog = new QuiverLauncher.Views.CollectionsDialog(
+                game.DisplayName ?? game.Name ?? "this app",
+                settings.Collections,
+                collection => AppCollections.IsMember(collection, key));
+            await GameDialogService.ShowWindowAsync(dialog, _session.Token);
+            if (!dialog.Saved || _session.IsClosed)
+                return;
+
+            foreach (var (collectionId, member) in dialog.Membership)
+                if (AppCollections.Find(settings, collectionId) is { } collection)
+                    AppCollections.SetMember(collection, key, member);
+
+            foreach (var name in dialog.NewCollectionNames)
+                AppCollections.SetMember(AppCollections.Create(settings, name), key, true);
+
+            _settingsModel.SaveCurrent();
+            _gameManager.ApplyTagDisplayFilter(settings);
+            Changed();
+        });
+    }
+
     public async Task ConfigureLaunchOptionsAsync(GameInfo? game)
     {
         if (RefuseKiosk()) return;
@@ -458,6 +493,8 @@ public sealed class LibraryActions
 
                 games.Remove(gameToRemove);
                 await SaveGamesToJsonAsync(games);
+                if (AppCollections.RemoveFromAll(_settings, game.InstanceKey))
+                    _settingsModel.SaveCurrent();
                 Telemetry.Current.Track("app_removed", Telemetry.AppRef(game));
                 // Drop only Quiver's link; Windows continues to own the installed application.
                 var metadataPath = game.GetInstallPath(_gameManager.GamesFolder);

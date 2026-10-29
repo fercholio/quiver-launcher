@@ -133,6 +133,20 @@ public sealed class LibraryViewModel : ObservableViewModel, IDisposable
     /// <summary>The active quick project-type filter tag (e.g. "recomp"), or null for all types.</summary>
     public string? QuickType => _manager.QuickTypeFilter;
 
+    /// <summary>The player's collections, for the library's collection filter.</summary>
+    public IReadOnlyList<AppCollection> Collections => Settings.Current.Collections ?? [];
+    /// <summary>The active collection filter id, or null for all collections.</summary>
+    public string? QuickCollection => _manager.QuickCollectionFilter;
+
+    /// <summary>Applies the quick collection filter on top of scope, tag filter, type and search. Null clears it.</summary>
+    public void SetQuickCollectionFilter(string? collectionId)
+    {
+        _manager.QuickCollectionFilter = string.IsNullOrWhiteSpace(collectionId) ? null : collectionId.Trim();
+        _manager.ApplyTagDisplayFilter(Settings.Current);
+        ApplySorting();
+        Notify(null);
+    }
+
     /// <summary>Applies the quick project-type filter (recomp/decomp/port/emulator) on top of the
     /// current scope, tag filter and search. Null or blank clears it. Session-only.</summary>
     public void SetQuickTypeFilter(string? type)

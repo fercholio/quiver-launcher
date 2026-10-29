@@ -148,6 +148,9 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.ConfigureLaunchOptions:
                     await _actions.ConfigureLaunchOptionsAsync(game);
                     break;
+                case LibraryActionKind.ManageCollections:
+                    await _actions.ManageCollectionsAsync(game);
+                    break;
                 case LibraryActionKind.ConfigureWindowsRunner:
                     await _actions.ConfigureRunnerAsync(game);
                     break;
@@ -261,6 +264,7 @@ public partial class LibraryView : UserControl
     private void AutoUpdateMenu_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.AutoUpdateMenu);
     private void ChangeVersion_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ChangeVersion);
     private void ConfigureLaunchOptions_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ConfigureLaunchOptions);
+    private void ManageCollections_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ManageCollections);
     private void ConfigureWindowsRunner_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ConfigureWindowsRunner);
     private void CreateShortcut_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.CreateShortcut);
     private void DeleteGameFromLibrary_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.DeleteGameFromLibrary);

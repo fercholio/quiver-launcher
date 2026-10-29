@@ -56,6 +56,14 @@ namespace QuiverLauncher
         public TagFilterMatchMode ExcludeMatchMode { get; set; } = TagFilterMatchMode.Any;
     }
 
+    /// <summary>A player-defined collection (category) of library apps, kept by their instance keys.</summary>
+    public class AppCollection
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public List<string> Members { get; set; } = new List<string>();
+    }
+
     /// <summary>An app list from Quiver Launcher 3.4 and older, read once to keep a player's own list.</summary>
     public class LegacyAppCatalogSource
     {
@@ -187,6 +195,8 @@ namespace QuiverLauncher
         public string? ActiveTagDisplayFilterId { get; set; }
         public AppListScope ListScope { get; set; } = AppListScope.AllApps;
         public Dictionary<string, List<string>> UserAppTags { get; set; } = new Dictionary<string, List<string>>();
+        /// <summary>Player-defined collections (categories) of library apps.</summary>
+        public List<AppCollection> Collections { get; set; } = new List<AppCollection>();
         /// <summary>Repository → custom library display name override (when app is not in local apps.json).</summary>
         public Dictionary<string, string> UserAppDisplayNames { get; set; } = new Dictionary<string, string>();
 
@@ -202,6 +212,7 @@ namespace QuiverLauncher
             PinnedFilterTags ??= new List<string>();
             UserAppTags ??= new Dictionary<string, List<string>>();
             UserAppDisplayNames ??= new Dictionary<string, string>();
+            Collections ??= new List<AppCollection>();
             DismissedAnnouncementIds ??= new List<string>();
             GamepadBindings ??= GamepadBindingDefaults.Create();
             GamepadBindingDefaults.EnsureComplete(GamepadBindings);
