@@ -315,6 +315,8 @@ public partial class SettingsView : UserControl
             if (AiComfyUrlTextBox != null) AiComfyUrlTextBox.Text = _settings.AiComfyUiUrl;
             if (AiComfyCheckpointTextBox != null) AiComfyCheckpointTextBox.Text = _settings.AiComfyUiCheckpoint;
             if (AiExecutableDetectionCheckBox != null) AiExecutableDetectionCheckBox.IsChecked = _settings.AiExecutableDetectionEnabled;
+            if (CompanionAppPathTextBox != null) CompanionAppPathTextBox.Text = _settings.CompanionAppPath;
+            if (LaunchCompanionCheckBox != null) LaunchCompanionCheckBox.IsChecked = _settings.LaunchCompanionBeforeGames;
             RefreshApiRateLimits();
             if (CustomAppListTextBox != null)
                 CustomAppListTextBox.Text = _settings.CustomAppListLocation;
@@ -483,6 +485,14 @@ public partial class SettingsView : UserControl
         _settings.AiExecutableDetectionEnabled = AiExecutableDetectionCheckBox.IsChecked == true;
         Model.Save(_settings);
         AiConfig.Settings = _settings;
+    }
+
+    internal void SaveCompanion_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_context == null || _suppressSettingsUiEvents) return;
+        _settings.CompanionAppPath = (CompanionAppPathTextBox.Text ?? "").Trim();
+        _settings.LaunchCompanionBeforeGames = LaunchCompanionCheckBox.IsChecked == true;
+        Model.Save(_settings);
     }
     internal void RefreshApiRateLimits()
     {

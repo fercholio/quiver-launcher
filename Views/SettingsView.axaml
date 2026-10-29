@@ -1023,6 +1023,14 @@
 										<TextBlock Text="Leave a field blank to use its default (or the matching QUIVER_* environment variable)." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,2,0,8"/>
 										<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,12,0,8"/>
 
+										<!-- Companion app before launch (e.g. Lossless Scaling) -->
+										<TextBlock Text="COMPANION APP ON LAUNCH (WINDOWS)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeTextSecondary}" LetterSpacing="1" Margin="0,0,0,4"/>
+										<TextBlock Text="Optional. Starts an app (such as Lossless Scaling) before each game launches, for in-game upscaling or an overlay. Only started if it isn't already running." FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+										<CheckBox x:Name="LaunchCompanionCheckBox" Content="Start the companion app before launching a game" FontSize="12" Foreground="{DynamicResource ThemeText}" Margin="0,0,0,6"/>
+										<TextBox x:Name="CompanionAppPathTextBox" PlaceholderText="Path to the app's .exe (e.g. Lossless Scaling)" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<Button x:Name="SaveCompanionButton" Classes="options" Content="Save companion app" MinHeight="44" HorizontalAlignment="Stretch" Click="SaveCompanion_Click" FontSize="12"/>
+										<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,12,0,8"/>
+
 										<!-- The player's own app list -->
 										<TextBlock Text="MY APP LIST"
 												   FontSize="10" FontWeight="Bold"

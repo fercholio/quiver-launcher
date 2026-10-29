@@ -17,6 +17,8 @@ public static class GameLaunchService
 
         try
         {
+            StartCompanionIfConfigured();
+
             var gamePath = game.GetInstallPath(gamesFolder);
 
             if (FlatpakService.HasReceipt(gamePath))
@@ -375,6 +377,37 @@ public static class GameLaunchService
             hasExited,
             exitCode);
         LaunchDebugReport.TryWrite(gamePath, report);
+    }
+
+    // Starts the configured companion app (e.g. Lossless Scaling) before a game launches, so an in-game
+    // upscaler/overlay is already running. Windows only, best effort, and skipped if it's already running.
+    private static void StartCompanionIfConfigured()
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+            var settings = AppSettings.Load();
+            if (!settings.LaunchCompanionBeforeGames)
+                return;
+            var path = settings.CompanionAppPath?.Trim();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return;
+
+            var name = Path.GetFileNameWithoutExtension(path);
+            if (Process.GetProcessesByName(name).Length > 0)
+                return;
+
+            Process.Start(new ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(path) ?? "",
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Could not start companion app: {ex.Message}");
+        }
     }
 
     // Records how long the launched process ran, as a best-effort play time. Fire-and-forget: it waits

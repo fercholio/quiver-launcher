@@ -146,6 +146,10 @@ namespace QuiverLauncher
         public DesktopWindowPlacement? DesktopWindowPlacement { get; set; }
         public bool CloseAfterLaunch {  get; set; } = false;
         public bool CloseToTray { get; set; }
+        /// <summary>Optional app (e.g. Lossless Scaling) started before a game launches, for in-game upscaling/overlays. Windows only.</summary>
+        public string CompanionAppPath { get; set; } = string.Empty;
+        /// <summary>When true and a companion app is set, it's started (if not already running) before each game launch.</summary>
+        public bool LaunchCompanionBeforeGames { get; set; } = false;
         public int MouseWheelScrollSpeed { get; set; } = 1;
         public bool BackgroundUpdateCheckEnabled { get; set; }
         public int BackgroundUpdateCheckIntervalMinutes { get; set; } = BackgroundUpdateCheckIntervals.DefaultMinutes;
