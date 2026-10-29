@@ -313,13 +313,27 @@ namespace QuiverLauncher.Services
                     app.RepositoryCheckError = previousCheck.RepositoryCheckError;
             }
 
+            // Show the library as soon as the app list is read, before any per-app status check. The
+            // cards appear immediately and each one's installed state fills in as its check completes
+            // below, instead of the whole list waiting on the slowest disk read (#190). Status doesn't
+            // affect which apps are visible (scope and tag filters don't depend on it), so showing first
+            // is safe.
+            await RebuildVisibleGamesAsync(_settings);
+
+            await RunOnUiThreadAsync(() =>
+            {
+                HasLoadedLibrary = true;
+                OnPropertyChanged(nameof(HasLoadedLibrary));
+            });
+
             if (!string.IsNullOrEmpty(_appsFolder))
             {
                 // Bound how many apps are checked at once. The per-app work is mostly disk I/O (does the
                 // install folder exist, read version/receipt files), so firing it for the whole library at
                 // once thrashes slow storage — a custom install folder on an SD card or a network mount —
-                // and the list can take a very long time to appear on a cold start (#190). A modest limit
-                // keeps fast disks quick while stopping slow ones from being swamped.
+                // and the checks can take a long time on a cold start (#190). A modest limit keeps fast
+                // disks quick while stopping slow ones from being swamped. Each app notifies as it's read,
+                // so its card updates in place.
                 var parallelism = Math.Clamp(Environment.ProcessorCount, 2, 8);
                 await Parallel.ForEachAsync(_catalogApps,
                     new ParallelOptions { MaxDegreeOfParallelism = parallelism },
@@ -337,15 +351,6 @@ namespace QuiverLauncher.Services
                         }
                     });
             }
-
-            await RebuildVisibleGamesAsync(_settings);
-
-            // The local collection is ready; artwork and online metadata must not extend startup loading UI.
-            await RunOnUiThreadAsync(() =>
-            {
-                HasLoadedLibrary = true;
-                OnPropertyChanged(nameof(HasLoadedLibrary));
-            });
 
             await LoadCustomAndCachedIconsAsync(allowDownload: allowNetwork);
         }
