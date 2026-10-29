@@ -1198,11 +1198,14 @@ namespace QuiverLauncher.Models
             Directory.CreateDirectory(customIconsDir);
 
             var extension = Path.GetExtension(sourcePath);
-            var fileName = $"{FolderName}_custom{extension}";
+            // A unique file name each time so the image loader treats it as a new image and doesn't serve a
+            // cached bitmap from the previous custom image — that's why replacing one used to need a restart (#209).
+            var fileName = $"{FolderName}_custom_{DateTime.UtcNow.Ticks}{extension}";
             var destinationPath = Path.Combine(customIconsDir, fileName);
 
             try
             {
+                // Remove any previous custom image for this app (the old fixed name and earlier unique ones).
                 if (!string.IsNullOrEmpty(CustomIconPath) && File.Exists(CustomIconPath))
                 {
                     ClearImageFromMemory();
@@ -1210,9 +1213,9 @@ namespace QuiverLauncher.Models
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
                     GC.Collect();
-
-                    TryDeleteFileWithRetry(CustomIconPath, maxRetries: 3, delayMs: 100);
                 }
+                foreach (var stale in EnumerateCustomIconFiles(customIconsDir))
+                    TryDeleteFileWithRetry(stale, maxRetries: 3, delayMs: 100);
 
                 using (var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 using (var destStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -1294,29 +1297,48 @@ namespace QuiverLauncher.Models
             if (!Directory.Exists(customIconsDir))
                 return;
 
-            var possibleExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico" };
-            foreach (var ext in possibleExtensions)
-            {
-                var fileName = $"{FolderName}_custom{ext}";
-                var iconPath = Path.Combine(customIconsDir, fileName);
-                if (File.Exists(iconPath))
-                {
-                    try
-                    {
-                        var attributes = File.GetAttributes(iconPath);
-                        if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                        {
-                            File.SetAttributes(iconPath, attributes & ~FileAttributes.ReadOnly);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
-                    }
+            // Newest first: both the old fixed name "<folder>_custom.ext" and the newer unique
+            // "<folder>_custom_<ticks>.ext" match, so images set by any version still load.
+            var iconPath = EnumerateCustomIconFiles(customIconsDir)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+            if (iconPath == null)
+                return;
 
-                    CustomIconPath = iconPath;
-                    break;
+            try
+            {
+                var attributes = File.GetAttributes(iconPath);
+                if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                {
+                    File.SetAttributes(iconPath, attributes & ~FileAttributes.ReadOnly);
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
+            }
+
+            CustomIconPath = iconPath;
+        }
+
+        // Every custom-image file for this app: the old fixed name and newer cache-busting unique names,
+        // across the supported image extensions.
+        private IEnumerable<string> EnumerateCustomIconFiles(string customIconsDir)
+        {
+            if (string.IsNullOrEmpty(FolderName) || !Directory.Exists(customIconsDir))
+                return [];
+
+            var allowed = new HashSet<string>(
+                [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico"], StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                return Directory.EnumerateFiles(customIconsDir, $"{FolderName}_custom*")
+                    .Where(f => allowed.Contains(Path.GetExtension(f)))
+                    .ToList();
+            }
+            catch
+            {
+                return [];
             }
         }
 

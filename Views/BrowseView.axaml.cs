@@ -62,6 +62,8 @@ public partial class BrowseView : UserControl
         Fill(BrowseAiComboBox, BrowseText.AiFilters);
         foreach (var combo in new[] { BrowseSortComboBox, BrowseTypeComboBox, BrowsePlatformComboBox, BrowseConsoleComboBox, BrowseAiComboBox })
             GamepadComboBoxNavigation.Attach(combo);
+        // F5 reloads the catalog page, like a browser.
+        AddHandler(KeyDownEvent, OnBrowseKeyDown, RoutingStrategies.Bubble);
         _filterMinWidths = [.. FilterCombos.Select(c => c.MinWidth)];
         BrowseFiltersPanel.SizeChanged += (_, e) => ArrangeFilters(e.NewSize.Width);
         BrowseToolbarPanel.SizeChanged += (_, e) => ArrangeHideOption(e.NewSize.Width);
@@ -417,6 +419,13 @@ public partial class BrowseView : UserControl
     private void BrowseRefresh_Click(object? sender, RoutedEventArgs e)
     {
         if (Model == null || Model.IsLoading) return;
+        Reload();
+    }
+
+    private void OnBrowseKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F5 || Model == null || Model.IsLoading) return;
+        e.Handled = true;
         Reload();
     }
 
