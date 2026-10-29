@@ -182,6 +182,66 @@ public static class GameInstallationService
         RetargetSelectedExecutable(gamePath, keepFullPath, options);
     }
 
+    /// <summary>
+    /// After placing a new single-file executable, removes the previously installed single file when it is
+    /// a versioned variant of the new one (e.g. client-v0.9.21.exe superseded by client-v0.9.22.exe), so
+    /// old builds don't pile up and leave the saved executable choice pointing at a stale file (#185/#180/
+    /// #177). Only the recorded previous file is considered, and only when it normalizes to the same asset
+    /// identity as the new file — companion executables (a server, a crash handler) are never touched.
+    /// AppImages keep their own cleanup. Then retargets selected_executable.txt if it named the old file.
+    /// </summary>
+    internal static void RemoveSupersededSingleFile(string gamePath, string newFileName, GameInstallationOptions options)
+    {
+        var previous = Path.GetFileName(options.PreviousInstallFileName ?? string.Empty);
+        if (previous.Length == 0 || string.Equals(previous, newFileName, StringComparison.OrdinalIgnoreCase))
+            return;
+        if (!IsSingleFileExecutableAsset(previous) || IsAppImageAsset(previous))
+            return;
+        if (!string.Equals(
+                DownloadAssetPolicy.NormalizedAssetKey(previous, null),
+                DownloadAssetPolicy.NormalizedAssetKey(newFileName, null),
+                StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var previousPath = Path.Combine(gamePath, previous);
+        var newPath = Path.Combine(gamePath, newFileName);
+        try
+        {
+            if (File.Exists(previousPath) &&
+                !string.Equals(Path.GetFullPath(previousPath), Path.GetFullPath(newPath), StringComparison.OrdinalIgnoreCase))
+                File.Delete(previousPath);
+        }
+        catch (Exception ex)
+        {
+            Log(options, $"Warning: failed to delete superseded '{previous}': {ex.Message}");
+        }
+
+        RetargetSelectedFile(gamePath, previousPath, newPath, options);
+    }
+
+    static void RetargetSelectedFile(string gamePath, string oldPath, string newPath, GameInstallationOptions options)
+    {
+        var selectedPath = Path.Combine(gamePath, "selected_executable.txt");
+        try
+        {
+            if (!File.Exists(selectedPath))
+                return;
+            var saved = File.ReadAllText(selectedPath).Trim();
+            if (saved.Length == 0)
+                return;
+            var namesOldFile =
+                string.Equals(Path.GetFileName(saved), Path.GetFileName(oldPath), StringComparison.OrdinalIgnoreCase) &&
+                (!Path.IsPathRooted(saved) ||
+                 string.Equals(Path.GetFullPath(saved), Path.GetFullPath(oldPath), StringComparison.OrdinalIgnoreCase));
+            if (namesOldFile)
+                File.WriteAllText(selectedPath, newPath);
+        }
+        catch (Exception ex)
+        {
+            Log(options, $"Warning: failed to update selected_executable.txt: {ex.Message}");
+        }
+    }
+
     static IEnumerable<string> StaleAppImages(string gamePath, GameInstallationOptions options)
     {
         if (!options.IsSharedFolder)
@@ -333,6 +393,8 @@ public static class GameInstallationService
 
             if (IsAppImageAsset(destName) || IsAppImageAsset(effectiveName))
                 RemoveStaleAppImages(gamePath, destPath, options);
+            else
+                RemoveSupersededSingleFile(gamePath, destName, options);
         }
         else if (IsDiskImageAsset(effectiveName))
         {
