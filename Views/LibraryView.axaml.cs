@@ -226,6 +226,12 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.CopySaveFolderPath:
                     await CopySaveFolderPathAsync(game);
                     break;
+                case LibraryActionKind.BackUp:
+                    await _actions.BackUpAsync(game);
+                    break;
+                case LibraryActionKind.RestoreBackup:
+                    await _actions.RestoreBackupAsync(game);
+                    break;
                 case LibraryActionKind.AutoUpdateMenu:
                     if (game != null)
                         await _autoUpdate(game);
@@ -288,6 +294,8 @@ public partial class LibraryView : UserControl
     private void OpenFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenFolder);
     private void OpenSaveFolder_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.OpenSaveFolder);
     private void CopySaveFolderPath_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.CopySaveFolderPath);
+    private void BackUp_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.BackUp);
+    private void RestoreBackup_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.RestoreBackup);
 
     private async Task CopySaveFolderPathAsync(GameInfo? game)
     {

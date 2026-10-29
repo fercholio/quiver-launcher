@@ -37,6 +37,14 @@
 												  Click="CopySaveFolderPath_Click"
 												  IsVisible="{Binding CanOpenFolder}"
 												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Back Up…"
+												  Click="BackUp_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
+										<MenuItem Header="Restore from Backup…"
+												  Click="RestoreBackup_Click"
+												  IsVisible="{Binding CanOpenFolder}"
+												  CommandParameter="{Binding}"/>
 										<MenuItem Header="Versions"
 												  IsVisible="{Binding CanVersionOptions}">
 											<MenuItem Header="Change Version"

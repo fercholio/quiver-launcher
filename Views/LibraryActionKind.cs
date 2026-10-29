@@ -4,6 +4,7 @@ public enum LibraryActionKind
 {
     AddToSteam,
     AutoTag,
+    BackUp,
     AutoUpdateMenu,
     BackToVerifiedUpdates,
     ChangeVersion,
@@ -33,6 +34,7 @@ public enum LibraryActionKind
     Reinstall,
     RemoveCustomIcon,
     RemoveGameEntry,
+    RestoreBackup,
     SelectDifferentExecutable,
     SetCustomIcon,
     ShowChangelog,

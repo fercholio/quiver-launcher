@@ -1,4 +1,5 @@
 using Avalonia.Platform.Storage;
+using System.IO.Compression;
 using QuiverLauncher.Core.Models;
 using QuiverLauncher.Core.Services;
 using QuiverLauncher.Models;
@@ -156,6 +157,105 @@ public sealed class LibraryActions
         {
             _ = _session.RunAsync(() => ShowMessageBoxAsync($"Failed to open the save folder: {ex.Message}", "Save Folder"));
         }
+    }
+
+    public async Task BackUpAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.FolderName))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+            var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+            if (string.IsNullOrWhiteSpace(installPath) || !Directory.Exists(installPath))
+            {
+                await ShowMessageBoxAsync("This app has no install folder to back up.", "Back Up");
+                return;
+            }
+
+            var suggested = InstallBackup.SuggestFileName(game.Name, game.InstalledVersion, DateOnly.FromDateTime(DateTime.Now));
+            var file = await _storage().SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = $"Back up {game.Name}",
+                SuggestedFileName = suggested,
+                DefaultExtension = "zip",
+                FileTypeChoices = [new FilePickerFileType("Zip archive") { Patterns = ["*.zip"] }],
+            }).WaitAsync(_session.Token);
+            if (file == null || _session.IsClosed)
+                return;
+
+            var dest = file.Path.LocalPath;
+            try
+            {
+                game.IsLoading = true;
+                await Task.Run(() =>
+                {
+                    if (File.Exists(dest)) File.Delete(dest);
+                    ZipFile.CreateFromDirectory(installPath, dest, CompressionLevel.Optimal, includeBaseDirectory: false);
+                }, _session.Token);
+                await ShowMessageBoxAsync($"Backed up {game.Name} to:\n{dest}", "Backup Complete");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Backup failed: {ex.Message}", "Back Up");
+            }
+            finally { game.IsLoading = false; }
+        });
+    }
+
+    public async Task RestoreBackupAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || string.IsNullOrWhiteSpace(game.FolderName))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+            var installPath = game.GetInstallPath(_gameManager.GamesFolder);
+            if (string.IsNullOrWhiteSpace(installPath))
+            {
+                await ShowMessageBoxAsync("This app has no install folder to restore into.", "Restore Backup");
+                return;
+            }
+
+            var files = await _storage().OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = $"Restore {game.Name} from backup",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Zip archive") { Patterns = ["*.zip"] }],
+            }).WaitAsync(_session.Token);
+            if (files == null || files.Count == 0 || _session.IsClosed)
+                return;
+            var src = files[0].Path.LocalPath;
+
+            if (!await ShowMessageBoxAsync(
+                    $"Restore {game.Name} from this backup?\n\nFiles in the install folder with the same names will be overwritten.",
+                    "Restore Backup", isQuestion: true, preferCancelDefault: true) || _session.IsClosed)
+                return;
+
+            try
+            {
+                game.IsLoading = true;
+                await Task.Run(() =>
+                {
+                    Directory.CreateDirectory(installPath);
+                    ZipFile.ExtractToDirectory(src, installPath, overwriteFiles: true);
+                }, _session.Token);
+                await game.CheckStatusAsync(_gameManager.HttpClient, _gameManager.GamesFolder, checkRemoteVersion: false);
+                Changed();
+                await ShowMessageBoxAsync($"Restored {game.Name} from the backup.", "Restore Complete");
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Restore failed: {ex.Message}", "Restore Backup");
+            }
+            finally { game.IsLoading = false; }
+        });
     }
 
     public async Task ConfigureRunnerAsync(GameInfo? game)
