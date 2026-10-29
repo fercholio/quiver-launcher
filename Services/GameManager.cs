@@ -315,19 +315,27 @@ namespace QuiverLauncher.Services
 
             if (!string.IsNullOrEmpty(_appsFolder))
             {
-                await Task.WhenAll(_catalogApps.Where(app => app != null).Select(async app =>
-                {
-                    try
+                // Bound how many apps are checked at once. The per-app work is mostly disk I/O (does the
+                // install folder exist, read version/receipt files), so firing it for the whole library at
+                // once thrashes slow storage — a custom install folder on an SD card or a network mount —
+                // and the list can take a very long time to appear on a cold start (#190). A modest limit
+                // keeps fast disks quick while stopping slow ones from being swamped.
+                var parallelism = Math.Clamp(Environment.ProcessorCount, 2, 8);
+                await Parallel.ForEachAsync(_catalogApps,
+                    new ParallelOptions { MaxDegreeOfParallelism = parallelism },
+                    async (app, _) =>
                     {
-                        await GameStatusService.CheckStatusAsync(app, _httpClient, _appsFolder, forceUpdateCheck,
-                            checkRemoteVersion: allowNetwork, applyCachedRelease: allowNetwork);
-                        if (!allowNetwork) StartupVersionResolver.Apply(app);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
-                    }
-                }));
+                        try
+                        {
+                            await GameStatusService.CheckStatusAsync(app, _httpClient, _appsFolder, forceUpdateCheck,
+                                checkRemoteVersion: allowNetwork, applyCachedRelease: allowNetwork);
+                            if (!allowNetwork) StartupVersionResolver.Apply(app);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
+                        }
+                    });
             }
 
             await RebuildVisibleGamesAsync(_settings);
