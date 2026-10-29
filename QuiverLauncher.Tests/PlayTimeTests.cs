@@ -52,4 +52,14 @@ public class PlayTimeTests
         GameGridViewModel.CompareForInsertion(more, less, "MostPlayed", ignoreArticles: true).Should().BeLessThan(0);
         GameGridViewModel.CompareForInsertion(less, more, "MostPlayed", ignoreArticles: true).Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void RecentlyInstalled_comparer_orders_newer_first()
+    {
+        var older = new GameInfo { Name = "A", FolderName = "A", InstalledSortTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+        var newer = new GameInfo { Name = "B", FolderName = "B", InstalledSortTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+
+        GameGridViewModel.CompareForInsertion(newer, older, "RecentlyInstalled", ignoreArticles: true).Should().BeLessThan(0);
+        GameGridViewModel.CompareForInsertion(older, newer, "RecentlyInstalled", ignoreArticles: true).Should().BeGreaterThan(0);
+    }
 }

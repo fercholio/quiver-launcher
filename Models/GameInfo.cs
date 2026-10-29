@@ -537,6 +537,8 @@ namespace QuiverLauncher.Models
         internal DateTime LastPlayedSortTime { get; set; } = DateTime.MinValue;
         /// <summary>Cached total play time (seconds) for sorting; set when the play-time file is read.</summary>
         internal long PlayTimeSortSeconds { get; set; }
+        /// <summary>Cached install time (UTC) for sorting; set when the install folder's date is read.</summary>
+        internal DateTime InstalledSortTime { get; set; } = DateTime.MinValue;
         internal DownloadAssetSelection? DownloadChoices { get; set; }
         internal string? DownloadSelectionContext { get; set; }
         public bool HasMultipleDownloads => DownloadChoices?.NeedsChoice ?? AvailableDownloads?.Count > 1;

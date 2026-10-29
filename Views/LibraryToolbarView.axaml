@@ -59,6 +59,7 @@
 								<ComboBoxItem Content="Not Installed First" Tag="NotInstalled"/>
 								<ComboBoxItem Content="Last Played" Tag="LastPlayed"/>
 									<ComboBoxItem Content="Most Played" Tag="MostPlayed"/>
+									<ComboBoxItem Content="Recently Installed" Tag="RecentlyInstalled"/>
 							</ComboBox>
 							</Grid>
 </UserControl>

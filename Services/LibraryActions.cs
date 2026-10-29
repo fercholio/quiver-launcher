@@ -82,6 +82,16 @@ public sealed class LibraryActions
                 if (receipt != null && Directory.Exists(FlatpakService.DataDirectory(receipt)))
                     folderPath = FlatpakService.DataDirectory(receipt);
             }
+            else if (WindowsInstallerService.HasReceipt(folderPath))
+            {
+                // An installer app lives under Program Files, not in Quiver's folder, so open where it
+                // actually installed: the chosen executable's folder, else a best guess in Program Files.
+                var installerReceipt = WindowsInstallerService.ReadReceipt(folderPath);
+                var exeDir = Path.GetDirectoryName(installerReceipt?.ExecutablePath ?? "");
+                folderPath = !string.IsNullOrEmpty(exeDir) && Directory.Exists(exeDir)
+                    ? exeDir
+                    : WindowsInstallerService.GuessInstalledFolder(game.Name) ?? folderPath;
+            }
             if (string.IsNullOrWhiteSpace(folderPath))
             {
                 _ = _session.RunAsync(() => ShowMessageBoxAsync("Unable to identify the game folder.", "Action Error"));
