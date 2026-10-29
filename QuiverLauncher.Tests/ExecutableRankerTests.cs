@@ -65,6 +65,16 @@ public class ExecutableRankerTests
     }
 
     [Fact]
+    public void Prefers_a_bundled_launcher_over_the_game_and_helpers()
+    {
+        var result = ExecutableRanker.Rank(
+            ["ao2_install.exe", "ao2_lobby_server.exe", "ArmyOfTwoLauncher.exe", "armyoftworecomp.exe"],
+            "Army of Two");
+
+        result.ConfidentPick.Should().Be("ArmyOfTwoLauncher.exe");
+    }
+
+    [Fact]
     public void Empty_input_returns_no_pick()
     {
         var result = ExecutableRanker.Rank([], "Game");

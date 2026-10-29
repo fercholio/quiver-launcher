@@ -31,6 +31,10 @@ public static class ExecutableRanker
     // Fragments that lean towards "this is the thing you run".
     private static readonly string[] PositiveFragments = ["game", "play", "start", "launch"];
 
+    // A bundled launcher is almost always the intended entry point (common in recomp/decomp ports,
+    // where it sets up the game's files before running it), so weight it strongly.
+    private static readonly string[] StrongPositiveFragments = ["launcher"];
+
     private static readonly char[] Separators = ['/', '\\'];
     private static readonly Regex Tokenizer = new(@"[^a-z0-9]+", RegexOptions.Compiled);
 
@@ -85,6 +89,10 @@ public static class ExecutableRanker
         foreach (var fragment in PositiveFragments)
             if (lower.Contains(fragment, StringComparison.Ordinal))
                 score += 1;
+
+        foreach (var fragment in StrongPositiveFragments)
+            if (lower.Contains(fragment, StringComparison.Ordinal))
+                score += 3;
 
         // Reward names that overlap the app's own name. Compare on alphanumeric-only forms so
         // "StarshipParty.exe" still matches "Starship Party" despite the camel-casing and spacing.
