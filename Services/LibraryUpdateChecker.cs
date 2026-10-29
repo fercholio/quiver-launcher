@@ -186,7 +186,16 @@ public sealed class LibraryUpdateChecker(HttpClient client, AppSettings settings
             var list = await Once(key + ":list", () => GitHubReleaseService.FetchReleaseListAsync(client, repository, credential, token));
             list.EnsureSuccess();
             var releases = list.Releases.Concat(latest.StatusCode == HttpStatusCode.OK ? latest.Releases : []).ToArray();
-            return ReleaseSelection.SelectLatestRelease(releases, app.ReleaseTarget, app.InstalledVersion, latest.LatestTag);
+            var chosen = ReleaseSelection.SelectLatestRelease(releases, app.ReleaseTarget, app.InstalledVersion, latest.LatestTag);
+            if (chosen != null)
+                return chosen;
+
+            // A tag-only repository has no releases with installable files; follow its git tags instead so
+            // the library tracks new tags rather than reporting "No eligible release was found".
+            var tags = await Once(key + ":tags", () => GitHubReleaseService.FetchTagsAsync(client, repository, credential, token));
+            return tags.StatusCode == HttpStatusCode.OK
+                ? ReleaseSelection.SelectLatestRelease(tags.Releases, app.ReleaseTarget, app.InstalledVersion, tags.Releases.FirstOrDefault()?.tag_name)
+                : null;
         }
     }
 }

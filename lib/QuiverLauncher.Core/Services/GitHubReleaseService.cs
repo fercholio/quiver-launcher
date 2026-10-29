@@ -41,11 +41,24 @@ namespace QuiverLauncher.Core.Services
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             if (latest.IsRateLimited || latest.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
                 return latest;
-            return result with
+            var merged = result with
             {
                 Releases = MergeLatestRelease(result.Releases, latest.Releases.FirstOrDefault()),
                 LatestTag = latest.LatestTag
             };
+
+            // A tag-only repository has no GitHub Releases with installable files, so the releases API
+            // comes back empty (or assetless) and the app would say "No eligible release was found".
+            // Fall back to git tags so update tracking still follows new tags and the tag's source archive
+            // can be installed as a last resort.
+            if (!merged.Releases.Any(release => GetDownloadableAssets(release).Count > 0))
+            {
+                var tags = await FetchTagsAsync(httpClient, repository, token, cancellationToken).ConfigureAwait(false);
+                if (tags.StatusCode == HttpStatusCode.OK && tags.Releases.Count > 0)
+                    return tags with { LatestTag = tags.Releases[0].tag_name };
+            }
+
+            return merged;
         }
 
         public static Task<GitHubReleaseFetchResult> FetchReleaseListAsync(HttpClient client, string repository,
@@ -53,6 +66,62 @@ namespace QuiverLauncher.Core.Services
             ReleaseRequestCoordinator.For(client).FetchAsync(client,
                 new Uri($"https://api.github.com/repos/{repository}/releases"), "github", token,
                 body => JsonSerializer.Deserialize<List<GitHubRelease>>(body) ?? [], cancellationToken);
+
+        private sealed record GitHubTagDto(string? name);
+
+        /// <summary>
+        /// Git tags as synthesized releases, each with one asset pointing at the tag's source archive. For
+        /// repositories that ship only git tags and no GitHub Releases (so the releases API is empty), this
+        /// lets update tracking follow new tags and the tag's archive be installed as a last resort. Newest
+        /// version first, so the usual "latest" selection picks the highest tag.
+        /// </summary>
+        public static Task<GitHubReleaseFetchResult> FetchTagsAsync(HttpClient client, string repository,
+            string? token = null, CancellationToken cancellationToken = default) =>
+            ReleaseRequestCoordinator.For(client).FetchAsync(client,
+                new Uri($"https://api.github.com/repos/{repository}/tags"), "github", token,
+                body => SynthesizeReleasesFromTags(repository, body), cancellationToken);
+
+        internal static List<GitHubRelease> SynthesizeReleasesFromTags(string repository, string body)
+        {
+            List<GitHubTagDto>? tags;
+            try { tags = JsonSerializer.Deserialize<List<GitHubTagDto>>(body); }
+            catch (JsonException) { return []; }
+            if (tags == null) return [];
+
+            var repoName = repository.Contains('/', StringComparison.Ordinal)
+                ? repository[(repository.LastIndexOf('/') + 1)..]
+                : repository;
+
+            var releases = tags
+                .Where(tag => !string.IsNullOrWhiteSpace(tag.name))
+                .Select(tag => new GitHubRelease
+                {
+                    tag_name = tag.name!.Trim(),
+                    prerelease = ReleaseVersionIdentity.LooksLikePrereleaseTag(tag.name),
+                    assets =
+                    [
+                        new GitHubAsset
+                        {
+                            name = $"{repoName}-{SanitizeTagForFileName(tag.name!)}.zip",
+                            browser_download_url =
+                                $"https://github.com/{repository}/archive/refs/tags/{Uri.EscapeDataString(tag.name!.Trim())}.zip",
+                        },
+                    ],
+                })
+                .ToList();
+
+            // Highest version first so SelectLatestRelease's "first with assets" is the newest tag.
+            releases.Sort((left, right) =>
+                ReleaseVersionIdentity.IsNewerVersion(right.tag_name, left.tag_name) ? 1
+                : ReleaseVersionIdentity.IsNewerVersion(left.tag_name, right.tag_name) ? -1 : 0);
+            return releases;
+        }
+
+        private static string SanitizeTagForFileName(string tag)
+        {
+            var cleaned = new string(tag.Trim().Select(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '-').ToArray());
+            return cleaned.Length == 0 ? "tag" : cleaned;
+        }
 
         /// <summary>Legacy ETags are ignored; endpoint validators always travel with their own payload.</summary>
         public static async Task<GitHubReleaseFetchResult> FetchLatestReleaseIndexAsync(
