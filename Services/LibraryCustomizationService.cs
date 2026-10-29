@@ -102,6 +102,39 @@ public sealed class LibraryCustomizationService(GameManager manager, LibraryView
         finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ } }
     });
 
+    public Task FetchCoverFromSteamGridDbAsync(GameInfo? game) => session.RunAsync(async () =>
+    {
+        if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
+        if (!AiConfig.HasSteamGridDb)
+        {
+            await message("No SteamGridDB API key is set. Add one in Settings → Advanced → AI features (get a free key at steamgriddb.com).", "SteamGridDB Not Configured", false);
+            return;
+        }
+        var replacing = !string.IsNullOrEmpty(game.CustomIconPath);
+        if (replacing && !await message($"Replace {game.Name}'s current image with cover art from SteamGridDB?", "Fetch Cover", true)) return;
+        session.Token.ThrowIfCancellationRequested();
+
+        byte[]? image;
+        try { image = await SteamGridDbService.FetchCoverAsync(game.Name, session.Token); }
+        catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { return; }
+        catch (Exception ex) { await message($"Couldn't fetch a cover: {ex.Message}", "Fetch Failed", false); return; }
+
+        if (image == null || image.Length == 0)
+        {
+            await message($"SteamGridDB had no cover for {game.Name} (or the key was rejected).", "No Cover Found", false);
+            return;
+        }
+
+        var temp = Path.Combine(Path.GetTempPath(), $"quiver-sgdb-{Guid.NewGuid():N}.png");
+        try
+        {
+            await File.WriteAllBytesAsync(temp, image, session.Token);
+            game.SetCustomIcon(temp, manager.CacheFolder);
+        }
+        catch (Exception ex) { await message($"Couldn't apply the cover: {ex.Message}", "Fetch Failed", false); }
+        finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ } }
+    });
+
     public Task UpscaleCoverAsync(GameInfo? game) => session.RunAsync(async () =>
     {
         if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }

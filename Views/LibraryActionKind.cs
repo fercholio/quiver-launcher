@@ -15,6 +15,7 @@ public enum LibraryActionKind
     EditTagsMenu,
     EmptyLibraryAddApp,
     EmptyLibraryBrowseCatalog,
+    FetchCoverFromSteamGridDb,
     GenerateAiCover,
     HideGame,
     InstallUnverifiedRelease,

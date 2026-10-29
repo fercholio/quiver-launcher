@@ -315,6 +315,7 @@ public partial class SettingsView : UserControl
             if (AiComfyUrlTextBox != null) AiComfyUrlTextBox.Text = _settings.AiComfyUiUrl;
             if (AiComfyCheckpointTextBox != null) AiComfyCheckpointTextBox.Text = _settings.AiComfyUiCheckpoint;
             if (AiExecutableDetectionCheckBox != null) AiExecutableDetectionCheckBox.IsChecked = _settings.AiExecutableDetectionEnabled;
+            if (AiSteamGridDbKeyTextBox != null) AiSteamGridDbKeyTextBox.Text = _settings.SteamGridDbApiKey;
             if (CompanionAppPathTextBox != null) CompanionAppPathTextBox.Text = _settings.CompanionAppPath;
             if (LaunchCompanionCheckBox != null) LaunchCompanionCheckBox.IsChecked = _settings.LaunchCompanionBeforeGames;
             RefreshApiRateLimits();
@@ -483,6 +484,7 @@ public partial class SettingsView : UserControl
         _settings.AiComfyUiUrl = (AiComfyUrlTextBox.Text ?? "").Trim();
         _settings.AiComfyUiCheckpoint = (AiComfyCheckpointTextBox.Text ?? "").Trim();
         _settings.AiExecutableDetectionEnabled = AiExecutableDetectionCheckBox.IsChecked == true;
+        _settings.SteamGridDbApiKey = (AiSteamGridDbKeyTextBox.Text ?? "").Trim();
         Model.Save(_settings);
         AiConfig.Settings = _settings;
     }

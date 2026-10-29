@@ -189,6 +189,9 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.GenerateAiCover:
                     await _customization.GenerateAiCoverAsync(game);
                     break;
+                case LibraryActionKind.FetchCoverFromSteamGridDb:
+                    await _customization.FetchCoverFromSteamGridDbAsync(game);
+                    break;
                 case LibraryActionKind.UpscaleCover:
                     await _customization.UpscaleCoverAsync(game);
                     break;
@@ -269,6 +272,7 @@ public partial class LibraryView : UserControl
     private void SelectDifferentExecutable_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SelectDifferentExecutable);
     private void SetCustomIcon_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SetCustomIcon);
     private void GenerateAiCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.GenerateAiCover);
+    private void FetchCoverFromSteamGridDb_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.FetchCoverFromSteamGridDb);
     private void UpscaleCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.UpscaleCover);
     private void AutoTag_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.AutoTag);
     private void ShowChangelog_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ShowChangelog);

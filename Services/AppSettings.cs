@@ -101,6 +101,8 @@ namespace QuiverLauncher
         public string AiComfyUiCheckpoint { get; set; } = string.Empty;
         /// <summary>Let the AI pick a game's executable when several are found. The offline heuristic runs regardless.</summary>
         public bool AiExecutableDetectionEnabled { get; set; } = true;
+        /// <summary>Optional SteamGridDB API key, for fetching community cover art. Blank falls back to QUIVER_STEAMGRIDDB_KEY.</summary>
+        public string SteamGridDbApiKey { get; set; } = string.Empty;
         public string SortBy { get; set; } = "LastPlayed";
         /// <summary>The player's own app list for Browse: a local JSON file or a URL, in the apps.json format.</summary>
         public string CustomAppListLocation { get; set; } = string.Empty;

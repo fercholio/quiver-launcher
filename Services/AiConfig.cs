@@ -46,6 +46,11 @@ public static class AiConfig
     /// <summary>Let the AI pick the game's executable when several are found. On by default; the heuristic runs first regardless.</summary>
     public static bool ExecutableDetectionEnabled => Settings?.AiExecutableDetectionEnabled ?? EnvFlag("QUIVER_AI_EXE", true);
 
+    /// <summary>Optional SteamGridDB API key for fetching community cover art.</summary>
+    public static string? SteamGridDbApiKey => FromSettings(Settings?.SteamGridDbApiKey) ?? Env("QUIVER_STEAMGRIDDB_KEY");
+
+    public static bool HasSteamGridDb => !string.IsNullOrWhiteSpace(SteamGridDbApiKey);
+
     /// <summary>How long any single AI request may take before Quiver gives up and uses the fallback.</summary>
     public static TimeSpan RequestTimeout
     {

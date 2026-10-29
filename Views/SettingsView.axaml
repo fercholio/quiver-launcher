@@ -1019,6 +1019,8 @@
 										<TextBox x:Name="AiComfyUrlTextBox" PlaceholderText="http://host:8188" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
 										<TextBlock Text="ComfyUI checkpoint" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
 										<TextBox x:Name="AiComfyCheckpointTextBox" PlaceholderText="sd_xl_base_1.0.safetensors" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
+										<TextBlock Text="SteamGridDB API key (community cover art)" FontSize="11" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,0,0,2"/>
+										<TextBox x:Name="AiSteamGridDbKeyTextBox" PasswordChar="●" Foreground="{DynamicResource ThemeText}" Background="{DynamicResource ThemeBase}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Padding="12,10" CornerRadius="4" Margin="0,0,0,6"/>
 										<Button x:Name="SaveAiSettingsButton" Classes="options" Content="Save AI settings" MinHeight="44" HorizontalAlignment="Stretch" Click="SaveAiSettings_Click" FontSize="12"/>
 										<TextBlock Text="Leave a field blank to use its default (or the matching QUIVER_* environment variable)." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource ThemeTextSecondary}" Margin="0,2,0,8"/>
 										<Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,12,0,8"/>
