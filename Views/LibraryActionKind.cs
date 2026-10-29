@@ -14,6 +14,7 @@ public enum LibraryActionKind
     EditTagsMenu,
     EmptyLibraryAddApp,
     EmptyLibraryBrowseCatalog,
+    GenerateAiCover,
     HideGame,
     InstallUnverifiedRelease,
     LaunchGameMenu,

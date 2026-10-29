@@ -34,6 +34,39 @@ public sealed class LibraryCustomizationService(GameManager manager, LibraryView
         catch (Exception ex) { await message($"Failed to {(replacing ? "replace" : "set")} custom icon: {ex.Message}", "Error", false); }
     });
 
+    public Task GenerateAiCoverAsync(GameInfo? game) => session.RunAsync(async () =>
+    {
+        if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
+        if (!AiConfig.HasComfyUi)
+        {
+            await message("No image generator is configured. Set QUIVER_COMFYUI_URL to a ComfyUI server to use AI covers.", "AI Cover Unavailable", false);
+            return;
+        }
+        var replacing = !string.IsNullOrEmpty(game.CustomIconPath);
+        if (!await message($"Generate a cover image for {game.Name} with AI?{(replacing ? " This replaces the current custom image." : "")}\n\nThis can take a little while.", "Generate AI Cover", true)) return;
+        session.Token.ThrowIfCancellationRequested();
+
+        byte[]? image;
+        try { image = await CoverArtService.GenerateAsync(game.Name, game.Project, session.Token); }
+        catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { return; }
+        catch (Exception ex) { await message($"Couldn't generate a cover: {ex.Message}", "AI Cover Failed", false); return; }
+
+        if (image == null || image.Length == 0)
+        {
+            await message("The image generator didn't return a cover. Check that the ComfyUI server is reachable and the checkpoint is installed.", "AI Cover Failed", false);
+            return;
+        }
+
+        var temp = Path.Combine(Path.GetTempPath(), $"quiver-cover-{Guid.NewGuid():N}.png");
+        try
+        {
+            await File.WriteAllBytesAsync(temp, image, session.Token);
+            game.SetCustomIcon(temp, manager.CacheFolder);
+        }
+        catch (Exception ex) { await message($"Couldn't apply the generated cover: {ex.Message}", "AI Cover Failed", false); }
+        finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ } }
+    });
+
     public Task RemoveIconAsync(GameInfo? game) => session.RunAsync(async () =>
     {
         if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
