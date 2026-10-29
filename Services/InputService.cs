@@ -32,6 +32,14 @@ namespace QuiverLauncher.Services
         private const float DeadZone = 0.3f;
         private const short AxisMax = 32767;
 
+        // Poll fast enough to feel instant while a pad is being used...
+        private static readonly TimeSpan FastPollInterval = TimeSpan.FromMilliseconds(16);
+        // ...but when no pad is in use the timer only has to notice a pad being plugged in or the window
+        // regaining focus, so it ticks a few times a second instead of ~60. This keeps idle CPU near zero.
+        private static readonly TimeSpan IdlePollInterval = TimeSpan.FromMilliseconds(500);
+        // Enumerating SDL devices allocates and makes a native call, so don't do it on every fast tick.
+        private DateTime _lastControllerScan = DateTime.MinValue;
+
         private static readonly SDL_GamepadButton[] AllButtons =
             Enum.GetValues<SDL_GamepadButton>()
                 .Where(b => b is not (SDL_GamepadButton.SDL_GAMEPAD_BUTTON_INVALID or SDL_GamepadButton.SDL_GAMEPAD_BUTTON_COUNT))
@@ -289,15 +297,29 @@ namespace QuiverLauncher.Services
 
         private void InitializeGamepadPolling()
         {
+            // Start idle; the first tick scans for pads and speeds up if one is connected and in use.
             _gamepadTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(16)
+                Interval = IdlePollInterval
             };
             _gamepadTimer.Tick += GamepadTimer_Tick;
             _gamepadTimer.Start();
         }
 
         private void GamepadTimer_Tick(object? sender, EventArgs e) => PollGamepads();
+
+        // Poll fast only while a connected pad actually needs reading (window focused, an overlay is up, or
+        // we're capturing a binding); otherwise drop to the idle rate so the UI thread can sleep between ticks.
+        private void UpdatePollInterval(bool overlayActive)
+        {
+            if (_gamepadTimer == null)
+                return;
+
+            var needsFastPolling = _gameControllers.Count > 0 && (_isWindowActive || overlayActive || _captureMode);
+            var target = needsFastPolling ? FastPollInterval : IdlePollInterval;
+            if (_gamepadTimer.Interval != target)
+                _gamepadTimer.Interval = target;
+        }
 
         /// <summary>Reads every open pad once and raises the actions it pressed. Runs on each timer tick.</summary>
         internal void PollGamepads()
@@ -307,9 +329,18 @@ namespace QuiverLauncher.Services
 
             CheckSDLWindowFocus();
             SDL_UpdateGamepads();
-            RefreshConnectedControllers();
+
+            // Button state is read every tick, but device hotplug only needs checking a couple of times a
+            // second, so the fast path doesn't re-enumerate SDL devices on each of its ~60 ticks.
+            var scanNow = DateTime.UtcNow;
+            if (_gameControllers.Count == 0 || scanNow - _lastControllerScan >= IdlePollInterval)
+            {
+                RefreshConnectedControllers();
+                _lastControllerScan = scanNow;
+            }
 
             var overlayActive = IsGamepadOverlayActive;
+            UpdatePollInterval(overlayActive);
 
             if (!_isWindowActive && !overlayActive && !_captureMode)
             {
