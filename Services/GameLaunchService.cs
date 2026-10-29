@@ -66,9 +66,21 @@ public static class GameLaunchService
             if (executables.Count > 1 &&
                 (string.IsNullOrEmpty(game.SelectedExecutable) || !executables.Contains(game.SelectedExecutable)))
             {
-                game.SelectedExecutable = null;
-                game.NotifyMultipleExecutablesChanged();
-                return false;
+                // Try to pick the game's executable automatically (heuristic first, then the LLM if it
+                // isn't sure) so the player isn't asked to hunt for it. Only prompt when nothing is confident.
+                var autoPick = await ExecutableAutoSelector.TrySelectAsync(game.Name, executables, CancellationToken.None)
+                    .ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(autoPick) && executables.Contains(autoPick))
+                {
+                    game.SelectedExecutable = autoPick;
+                    game.SaveSelectedExecutable(autoPick, gamesFolder);
+                }
+                else
+                {
+                    game.SelectedExecutable = null;
+                    game.NotifyMultipleExecutablesChanged();
+                    return false;
+                }
             }
 
             var executablePath = !string.IsNullOrEmpty(game.SelectedExecutable) &&
