@@ -174,7 +174,7 @@
 													   TextWrapping="Wrap"/>
 											<TextBox x:Name="KioskPinTextBox"
 													 PasswordChar="•"
-													 Watermark="Optional PIN"
+													 PlaceholderText="Optional PIN"
 													 Margin="20,8,0,0"/>
 											<StackPanel Orientation="Horizontal" Spacing="8" Margin="20,8,0,0">
 												<Button x:Name="SetKioskPinButton" Classes="options" Content="Set PIN" Click="SetKioskPin_Click"/>
@@ -384,7 +384,7 @@
 													 BorderThickness="1"
 													 Padding="12,10"
 													 CornerRadius="4"
-													 Watermark="Example: flatpak run com.usebottles.bottles -e {exe}"
+													 PlaceholderText="Example: flatpak run com.usebottles.bottles -e {exe}"
 													 Text="{Binding Settings.LinuxWindowsLaunchCommand, Mode=TwoWay}"
 													 TextChanged="LinuxWindowsLaunchCommandTextBox_TextChanged"/>
 											<TextBlock Text="Global override for Windows-only apps on Linux when an app uses Auto. Use {exe}, {gamePath}, or {exeDir}. Per-app runner/prefix is under Launch Options → Windows Runner. Leave blank to auto-detect Proton then Wine."
@@ -1017,7 +1017,7 @@
 												   TextWrapping="Wrap"
 												   Margin="0,0,0,6"/>
 										<TextBox x:Name="CustomAppListTextBox"
-												 Watermark="A URL or a file path"
+												 PlaceholderText="A URL or a file path"
 												 Foreground="{DynamicResource ThemeText}"
 												 Background="{DynamicResource ThemeBase}"
 												 BorderBrush="{DynamicResource ThemeBorder}"

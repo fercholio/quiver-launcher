@@ -112,7 +112,7 @@
 		     two when narrower; see ArrangeFilters). The library option and the buttons for an empty result follow below. -->
 		<Grid x:Name="BrowseFiltersPanel" Grid.Row="1" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" Margin="0,0,30,14">
 			<TextBox x:Name="BrowseSearchTextBox" Grid.Column="0"
-					 Watermark="Search games, projects, or tags…"
+					 PlaceholderText="Search games, projects, or tags…"
 					 MinHeight="40"
 					 FontSize="12"
 					 VerticalContentAlignment="Center"

@@ -7,7 +7,7 @@
     </Grid.ColumnDefinitions>
 							<Grid x:Name="LibrarySearchHost" MaxWidth="220" MinWidth="120" HorizontalAlignment="Stretch" VerticalAlignment="Center">
 							<TextBox x:Name="LibrarySearchTextBox"
-									 Watermark="Search this list"
+									 PlaceholderText="Search this list"
 									 MinHeight="32"
 									 FontSize="12"
 									 Padding="8,0,28,0"
