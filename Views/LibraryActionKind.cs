@@ -32,4 +32,5 @@ public enum LibraryActionKind
     ShowReadme,
     SkipUpdate,
     UpdateNowMenu,
+    UpscaleCover,
 }

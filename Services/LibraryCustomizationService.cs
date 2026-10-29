@@ -67,6 +67,47 @@ public sealed class LibraryCustomizationService(GameManager manager, LibraryView
         finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ } }
     });
 
+    public Task UpscaleCoverAsync(GameInfo? game) => session.RunAsync(async () =>
+    {
+        if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
+        if (!AiConfig.HasComfyUi)
+        {
+            await message("No image generator is configured. Set QUIVER_COMFYUI_URL to a ComfyUI server to upscale covers.", "Upscale Unavailable", false);
+            return;
+        }
+        if (string.IsNullOrEmpty(game.CustomIconPath) || !File.Exists(game.CustomIconPath))
+        {
+            await message($"{game.Name} has no custom image to upscale. Add or generate one first.", "Nothing to Upscale", false);
+            return;
+        }
+        if (!await message($"Upscale {game.Name}'s cover with AI? This can take a little while.", "Upscale Cover", true)) return;
+        session.Token.ThrowIfCancellationRequested();
+
+        byte[]? upscaled;
+        try
+        {
+            var source = await File.ReadAllBytesAsync(game.CustomIconPath, session.Token);
+            upscaled = await CoverArtService.UpscaleAsync(source, session.Token);
+        }
+        catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { return; }
+        catch (Exception ex) { await message($"Couldn't upscale the cover: {ex.Message}", "Upscale Failed", false); return; }
+
+        if (upscaled == null || upscaled.Length == 0)
+        {
+            await message("The image generator didn't return an upscaled cover. Check that the ComfyUI server is reachable.", "Upscale Failed", false);
+            return;
+        }
+
+        var temp = Path.Combine(Path.GetTempPath(), $"quiver-cover-up-{Guid.NewGuid():N}.png");
+        try
+        {
+            await File.WriteAllBytesAsync(temp, upscaled, session.Token);
+            game.SetCustomIcon(temp, manager.CacheFolder);
+        }
+        catch (Exception ex) { await message($"Couldn't apply the upscaled cover: {ex.Message}", "Upscale Failed", false); }
+        finally { try { if (File.Exists(temp)) File.Delete(temp); } catch { /* best effort */ } }
+    });
+
     public Task RemoveIconAsync(GameInfo? game) => session.RunAsync(async () =>
     {
         if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }

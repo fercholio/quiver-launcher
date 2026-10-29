@@ -76,6 +76,87 @@ public static class CoverArtService
         };
     }
 
+    /// <summary>
+    /// Upscales an existing cover (any image bytes) ~1.5x with a light img2img hi-res pass through the
+    /// SDXL checkpoint — sharper and larger with no extra upscale model needed. Returns the new PNG
+    /// bytes, or null on any failure.
+    /// </summary>
+    public static async Task<byte[]?> UpscaleAsync(byte[] source, CancellationToken token)
+    {
+        if (!AiConfig.HasComfyUi || source.Length == 0)
+            return null;
+
+        try
+        {
+            var baseUrl = AiConfig.ComfyUiUrl.TrimEnd('/');
+            var uploadedName = await UploadImageAsync(baseUrl, source, token).ConfigureAwait(false);
+            if (uploadedName == null)
+                return null;
+
+            var workflow = BuildUpscaleWorkflow(uploadedName);
+            var promptId = await QueueAsync(baseUrl, workflow, Guid.NewGuid().ToString("N"), token).ConfigureAwait(false);
+            if (promptId == null)
+                return null;
+
+            return await WaitForImageAsync(baseUrl, promptId, token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Cover upscale failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<string?> UploadImageAsync(string baseUrl, byte[] image, CancellationToken token)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(image);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        form.Add(file, "image", $"quiver-upscale-{Guid.NewGuid():N}.png");
+        form.Add(new StringContent("true"), "overwrite");
+
+        using var response = await Http.PostAsync($"{baseUrl}/upload/image", form, token).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            return null;
+        await using var stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: token).ConfigureAwait(false);
+        var name = doc.RootElement.TryGetProperty("name", out var n) ? n.GetString() : null;
+        var subfolder = doc.RootElement.TryGetProperty("subfolder", out var sf) ? sf.GetString() : "";
+        if (string.IsNullOrEmpty(name))
+            return null;
+        return string.IsNullOrEmpty(subfolder) ? name : $"{subfolder}/{name}";
+    }
+
+    // Light hi-res img2img: encode the image, upscale in latent space, denoise a little, decode.
+    private static Dictionary<string, object> BuildUpscaleWorkflow(string imageName)
+    {
+        var seed = Random.Shared.NextInt64(0, long.MaxValue);
+        return new Dictionary<string, object>
+        {
+            ["4"] = Node("CheckpointLoaderSimple", new { ckpt_name = AiConfig.ComfyUiCheckpoint }),
+            ["10"] = Node("LoadImage", new { image = imageName }),
+            ["11"] = Node("VAEEncode", new { pixels = Ref("10", 0), vae = Ref("4", 2) }),
+            ["12"] = Node("LatentUpscaleBy", new { samples = Ref("11", 0), upscale_method = "nearest-exact", scale_by = 1.5 }),
+            ["6"] = Node("CLIPTextEncode", new { text = "high quality, sharp, detailed, clean", clip = Ref("4", 1) }),
+            ["7"] = Node("CLIPTextEncode", new { text = "blurry, lowres, artifacts, jpeg", clip = Ref("4", 1) }),
+            ["3"] = Node("KSampler", new
+            {
+                seed,
+                steps = 18,
+                cfg = 6.0,
+                sampler_name = "dpmpp_2m",
+                scheduler = "karras",
+                denoise = 0.35,
+                model = Ref("4", 0),
+                positive = Ref("6", 0),
+                negative = Ref("7", 0),
+                latent_image = Ref("12", 0),
+            }),
+            ["8"] = Node("VAEDecode", new { samples = Ref("3", 0), vae = Ref("4", 2) }),
+            ["9"] = Node("SaveImage", new { filename_prefix = "quiver-cover-up", images = Ref("8", 0) }),
+        };
+    }
+
     private static Dictionary<string, object> Node(string classType, object inputs) =>
         new() { ["class_type"] = classType, ["inputs"] = inputs };
 

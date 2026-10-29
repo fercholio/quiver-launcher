@@ -189,6 +189,9 @@ public partial class LibraryView : UserControl
                 case LibraryActionKind.GenerateAiCover:
                     await _customization.GenerateAiCoverAsync(game);
                     break;
+                case LibraryActionKind.UpscaleCover:
+                    await _customization.UpscaleCoverAsync(game);
+                    break;
                 case LibraryActionKind.OpenGitHubPage:
                     await _actions.OpenRepositoryAsync(game);
                     break;
@@ -263,6 +266,7 @@ public partial class LibraryView : UserControl
     private void SelectDifferentExecutable_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SelectDifferentExecutable);
     private void SetCustomIcon_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SetCustomIcon);
     private void GenerateAiCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.GenerateAiCover);
+    private void UpscaleCover_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.UpscaleCover);
     private void ShowChangelog_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ShowChangelog);
     private void ShowReadme_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.ShowReadme);
     private void SkipUpdate_Click(object? sender, RoutedEventArgs e) => Request(sender, LibraryActionKind.SkipUpdate);
