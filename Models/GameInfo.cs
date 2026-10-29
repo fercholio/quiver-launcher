@@ -275,9 +275,22 @@ namespace QuiverLauncher.Models
 
         public bool HasLibraryCardTags => LibraryCardTags.Count > 0;
 
+        /// <summary>
+        /// True when this app expects the player to supply their own legally-owned copy of a game
+        /// (a ROM/ISO or base files) — recomps, decomps, ports and emulators do. Drives the
+        /// "needs your own game file" badge on library cards so the player can tell at a glance,
+        /// before launching, which apps will ask for a ROM/ISO. Quiver never provides game files.
+        /// </summary>
+        public bool NeedsOwnBaseFile => BaseFileRequirement.Detect(null, Tags, null).NeedsOwnCopy;
+
+        /// <summary>The explanation shown in the badge's tooltip (empty when no base file is needed).</summary>
+        public string BaseFileRequirementNote => BaseFileRequirement.Detect(null, Tags, null).Note;
+
         public void RefreshLibraryCardTags()
         {
             LibraryCardTags = TagChipHelper.SelectTagsForCardDisplay(Tags, LibraryCardTagMaxLines);
+            OnPropertyChanged(nameof(NeedsOwnBaseFile));
+            OnPropertyChanged(nameof(BaseFileRequirementNote));
         }
 
         public List<string> FilesToAdd { get; set; } = [];
