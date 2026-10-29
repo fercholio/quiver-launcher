@@ -57,7 +57,7 @@
 											<MenuItem Header="{Binding ExecutableSelectionLabel}"
 													  CommandParameter="{Binding}"
 													  Click="SelectDifferentExecutable_Click"
-													  IsVisible="{Binding HasExecutableChoice}"/>
+													  IsVisible="{Binding CanOverrideExecutable}"/>
 											<MenuItem Header="Arguments &amp; Environment…"
 													  Click="ConfigureLaunchOptions_Click"
 													  CommandParameter="{Binding}"/>

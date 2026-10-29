@@ -502,6 +502,7 @@ namespace QuiverLauncher.Models
                     DispatchPropertyChanged();
                     DispatchPropertyChanged(nameof(HasMultipleExecutables));
                     DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanOverrideExecutable));
                     DispatchPropertyChanged(nameof(CanLaunchOptions));
                     DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
                 }
@@ -603,6 +604,12 @@ namespace QuiverLauncher.Models
         public bool CanVersionOptions => !IsManuallyManaged && (CanSkipUpdate || CanChangeVersion || IsInstalled);
         public bool CanLaunchOptions =>
             !IsFlatpak && !PlatformCapabilities.IsMobile && (HasExecutableChoice || IsInstalled);
+        /// <summary>Whether to offer "Select Different Executable". Unlike <see cref="HasExecutableChoice"/>
+        /// (which needs more than one candidate), this is true for any installed non-Flatpak desktop app, so
+        /// the player can always re-pick the launch target — e.g. when an installer or the wrong exe was
+        /// auto-selected and keeps re-running on Play (#195/#155/#187).</summary>
+        public bool CanOverrideExecutable =>
+            IsWindowsInstaller || (!IsFlatpak && !PlatformCapabilities.IsMobile && IsInstalled);
         public bool CanToggleAutoUpdate => !IsWindowsInstaller && !IsManuallyManaged;
         public bool CanOpenFolder =>
             !PlatformCapabilities.IsMobile && (IsManuallyManaged || IsInstalled);
@@ -630,7 +637,7 @@ namespace QuiverLauncher.Models
                 if (_isFlatpak == value) return;
                 _isFlatpak = value;
                 foreach (var property in new[] { nameof(IsFlatpak), nameof(CanChangeVersion), nameof(CanLaunchOptions),
-                    nameof(HasExecutableChoice), nameof(HasMultipleExecutables), nameof(CanManageMods), nameof(ShowWindowsRunnerOptions), nameof(InstalledAppRemovalLabel) })
+                    nameof(HasExecutableChoice), nameof(CanOverrideExecutable), nameof(HasMultipleExecutables), nameof(CanManageMods), nameof(ShowWindowsRunnerOptions), nameof(InstalledAppRemovalLabel) })
                     DispatchPropertyChanged(property);
             }
         }
@@ -643,7 +650,7 @@ namespace QuiverLauncher.Models
             {
                 if (_isWindowsInstaller == value) return;
                 _isWindowsInstaller = value;
-                foreach (var property in new[] { nameof(IsWindowsInstaller), nameof(HasExecutableChoice),
+                foreach (var property in new[] { nameof(IsWindowsInstaller), nameof(HasExecutableChoice), nameof(CanOverrideExecutable),
                     nameof(CanLaunchOptions), nameof(CanLocateInstall), nameof(CanManageMods),
                     nameof(CanOpenMods), nameof(InstalledAppRemovalLabel), nameof(CanRemoveInstalledApp),
                     nameof(CanRunWindowsInstaller), nameof(HasMultipleExecutables), nameof(CanToggleAutoUpdate), nameof(ExecutableSelectionLabel) })
@@ -857,6 +864,7 @@ namespace QuiverLauncher.Models
                     DispatchPropertyChanged(nameof(CanOpenFolder));
                     DispatchPropertyChanged(nameof(IsWaitingForFiles));
                     DispatchPropertyChanged(nameof(HasExecutableChoice));
+                    DispatchPropertyChanged(nameof(CanOverrideExecutable));
                     DispatchPropertyChanged(nameof(CanLaunchOptions));
                     DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
                     DispatchPropertyChanged(nameof(IsDownloading));
@@ -1032,6 +1040,7 @@ namespace QuiverLauncher.Models
         {
             GameManager = gameManager;
             DispatchPropertyChanged(nameof(HasExecutableChoice));
+            DispatchPropertyChanged(nameof(CanOverrideExecutable));
             DispatchPropertyChanged(nameof(CanLaunchOptions));
             DispatchPropertyChanged(nameof(ShowWindowsRunnerOptions));
         }
