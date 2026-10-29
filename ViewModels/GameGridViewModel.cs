@@ -24,6 +24,10 @@ public class GameGridViewModel
                 : sortName;
         }
 
+        // The recomp/port project name (e.g. "Max Spin"), falling back to the game name when absent.
+        string ProjectKey(GameInfo g) =>
+            !string.IsNullOrWhiteSpace(g.Project) ? g.Project.Trim() : NameKey(g);
+
         return sortMode switch
         {
             "NameDesc" => list
@@ -47,6 +51,10 @@ public class GameGridViewModel
                 .ToList(),
             "RecentlyInstalled" => list
                 .OrderByDescending(g => GetInstalledDate(g, gamesFolder))
+                .ThenBy(NameKey, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            "Project" => list
+                .OrderBy(ProjectKey, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(NameKey, StringComparer.OrdinalIgnoreCase)
                 .ToList(),
             _ => list
@@ -145,6 +153,9 @@ public class GameGridViewModel
             "LastPlayed" => right.LastPlayedSortTime.CompareTo(left.LastPlayedSortTime),
             "MostPlayed" => right.PlayTimeSortSeconds.CompareTo(left.PlayTimeSortSeconds),
             "RecentlyInstalled" => right.InstalledSortTime.CompareTo(left.InstalledSortTime),
+            "Project" => StringComparer.OrdinalIgnoreCase.Compare(
+                string.IsNullOrWhiteSpace(left.Project) ? Name(left) : left.Project.Trim(),
+                string.IsNullOrWhiteSpace(right.Project) ? Name(right) : right.Project.Trim()),
             _ => 0,
         };
         return primary != 0 ? primary : (mode == "NameDesc" ? -1 : 1) *

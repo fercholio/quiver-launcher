@@ -129,6 +129,19 @@ public sealed class LibraryViewModel : ObservableViewModel, IDisposable
         }
     }
     public void CancelSearch() { _search?.Cancel(); _search = null; }
+
+    /// <summary>The active quick project-type filter tag (e.g. "recomp"), or null for all types.</summary>
+    public string? QuickType => _manager.QuickTypeFilter;
+
+    /// <summary>Applies the quick project-type filter (recomp/decomp/port/emulator) on top of the
+    /// current scope, tag filter and search. Null or blank clears it. Session-only.</summary>
+    public void SetQuickTypeFilter(string? type)
+    {
+        _manager.QuickTypeFilter = string.IsNullOrWhiteSpace(type) ? null : type.Trim();
+        _manager.ApplyTagDisplayFilter(Settings.Current);
+        ApplySorting();
+        Notify(null);
+    }
     public void Dispose()
     {
         if (_closed) return;

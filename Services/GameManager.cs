@@ -46,6 +46,9 @@ namespace QuiverLauncher.Services
         public IReadOnlyList<GameInfo> LibraryApps => _catalogApps.Count > 0 ? _catalogApps : Games.ToArray();
         /// <summary>Session-only library search. Applied after Show scope and tag display filters.</summary>
         public string LibrarySearchText { get; set; } = "";
+        /// <summary>Session-only quick filter by a single project-type tag (e.g. "recomp", "decomp",
+        /// "port", "emulator"). Empty = show all types. Applied with the search and tag display filters.</summary>
+        public string? QuickTypeFilter { get; set; }
         public bool HasLibrarySearch => !string.IsNullOrWhiteSpace(LibrarySearchText);
         public bool HasNoLibrarySearchMatches =>
             !IsLibraryEmpty && HasLibrarySearch && Games.Count == 0;
@@ -590,6 +593,14 @@ namespace QuiverLauncher.Services
                             filter.ExcludeTags,
                             filter.ExcludeMatchMode));
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(QuickTypeFilter))
+            {
+                var type = QuickTypeFilter.Trim();
+                visibleGames = visibleGames.Where(game =>
+                    game.Tags != null &&
+                    game.Tags.Any(tag => string.Equals(tag?.Trim(), type, StringComparison.OrdinalIgnoreCase)));
             }
 
             if (!string.IsNullOrWhiteSpace(LibrarySearchText))

@@ -43,7 +43,25 @@
 									Margin="0"
 									Click="AddNewEntryButton_Click"/>
 
-							<ComboBox x:Name="SortByComboBox" Grid.Column="2"
+							<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+							<ComboBox x:Name="TypeFilterComboBox"
+									  MaxWidth="160"
+									  ToolTip.Tip="Filter by project type"
+									  Foreground="{DynamicResource ThemeText}"
+									  Background="{DynamicResource ThemeDarker}"
+									  BorderBrush="{DynamicResource ThemeBorder}"
+									  MinHeight="32"
+									  VerticalAlignment="Center"
+									  Margin="0"
+									  SelectedIndex="0"
+									  SelectionChanged="TypeFilterComboBox_SelectionChanged">
+								<ComboBoxItem Content="All types" Tag=""/>
+								<ComboBoxItem Content="Recomp" Tag="recomp"/>
+								<ComboBoxItem Content="Decomp" Tag="decomp"/>
+								<ComboBoxItem Content="Port" Tag="port"/>
+								<ComboBoxItem Content="Emulator" Tag="emulator"/>
+							</ComboBox>
+							<ComboBox x:Name="SortByComboBox"
 									  MaxWidth="200"
 									  ToolTip.Tip="{Binding SelectedItem.Content, RelativeSource={RelativeSource Self}, x:CompileBindings=False}"
 									  Foreground="{DynamicResource ThemeText}"
@@ -55,11 +73,13 @@
 									  SelectionChanged="SortByComboBox_SelectionChanged">
 								<ComboBoxItem Content="Name (A-Z)" Tag="Name"/>
 								<ComboBoxItem Content="Name (Z-A)" Tag="NameDesc"/>
+								<ComboBoxItem Content="Project (A-Z)" Tag="Project"/>
 								<ComboBoxItem Content="Installed First" Tag="Installed"/>
 								<ComboBoxItem Content="Not Installed First" Tag="NotInstalled"/>
 								<ComboBoxItem Content="Last Played" Tag="LastPlayed"/>
 									<ComboBoxItem Content="Most Played" Tag="MostPlayed"/>
 									<ComboBoxItem Content="Recently Installed" Tag="RecentlyInstalled"/>
 							</ComboBox>
+							</StackPanel>
 							</Grid>
 </UserControl>

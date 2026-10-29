@@ -21,12 +21,13 @@ public partial class LibraryToolbarView : UserControl
     public bool HasQuery => !string.IsNullOrWhiteSpace(LibrarySearchTextBox.Text);
     public bool SearchContainsFocus => LibrarySearchTextBox.IsFocused || LibrarySearchClearButton.IsFocused;
     public bool IsEditingSearch => GamepadTextInput.IsEditing && ReferenceEquals(GamepadTextInput.Active, LibrarySearchTextBox);
-    public double PreferredWidth => 220 + AddNewEntryButton.DesiredSize.Width + SortByComboBox.DesiredSize.Width + 24;
+    public double PreferredWidth => 220 + AddNewEntryButton.DesiredSize.Width + TypeFilterComboBox.DesiredSize.Width + SortByComboBox.DesiredSize.Width + 32;
 
     public LibraryToolbarView()
     {
         InitializeComponent();
         GamepadComboBoxNavigation.Attach(SortByComboBox);
+        GamepadComboBoxNavigation.Attach(TypeFilterComboBox);
         LibrarySearchTextBox.LostFocus += (sender, e) => SearchLostFocus?.Invoke(sender, e);
     }
 
@@ -70,6 +71,7 @@ public partial class LibraryToolbarView : UserControl
         LibrarySearchTextBox,
         LibrarySearchClearButton,
         AddNewEntryButton,
+        TypeFilterComboBox,
         SortByComboBox
     }
 
@@ -127,6 +129,16 @@ public partial class LibraryToolbarView : UserControl
                 SearchChanged?.Invoke();
             }
         });
+    }
+
+    private void TypeFilterComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        PreferredSizeChanged?.Invoke();
+        if (_session == null || _session.IsClosed || e.AddedItems.Count == 0)
+            return;
+        if (TypeFilterComboBox.SelectedItem is not ComboBoxItem { Tag: string type })
+            return;
+        _model.SetQuickTypeFilter(type);
     }
 
     private void SortByComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
