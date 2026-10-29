@@ -310,7 +310,7 @@ public sealed class WindowsInstallerServiceTests : IDisposable
         public int Picks { get; private set; }
         public List<string> Notices { get; } = [];
         public Task<bool> ConfirmWindowsInstallerAsync(string name) => Task.FromResult(Confirm);
-        public Task<string?> PickWindowsExecutableAsync(string name, string? previous) { Picks++; return Task.FromResult(Selected); }
+        public Task<string?> PickWindowsExecutableAsync(string name, string? previous, string? fallbackFolder = null) { Picks++; return Task.FromResult(Selected); }
         public Task<bool> ConfirmDownloadWithoutRunnerAsync() => Task.FromResult(false);
         public Task<LinuxWindowsRunnerConfig?> ConfigureWindowsRunnerAsync(string path, LinuxWindowsRunnerConfig? existing = null, bool isInstall = true) => Task.FromResult<LinuxWindowsRunnerConfig?>(null);
         public Task ShowRateLimitExceededAsync() => Task.CompletedTask;

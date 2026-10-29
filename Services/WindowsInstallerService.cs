@@ -125,7 +125,7 @@ public sealed class WindowsInstallerService(IWindowsInstallerProcessRunner runne
     public static async Task SelectExecutableAsync(GameInfo game, string metadataPath, IGameDownloadDialogs dialogs)
     {
         var receipt = ReadReceipt(metadataPath) ?? throw new InvalidOperationException("No Windows installation record was found.");
-        var selected = await dialogs.PickWindowsExecutableAsync(game.Name ?? "this app", receipt.ExecutablePath).ConfigureAwait(false);
+        var selected = await dialogs.PickWindowsExecutableAsync(game.Name ?? "this app", receipt.ExecutablePath, metadataPath).ConfigureAwait(false);
         if (selected != null)
         {
             if (!IsExecutable(selected)) throw new InvalidOperationException("Choose an existing Windows .exe file.");

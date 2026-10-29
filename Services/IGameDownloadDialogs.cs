@@ -4,7 +4,7 @@ public interface IGameDownloadDialogs
 {
     Task<bool> ConfirmWindowsInstallerAsync(string appName) =>
         throw new InvalidOperationException("MSI installation requires the Windows desktop interface. Open Quiver and run the installer there.");
-    Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath) =>
+    Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath, string? fallbackFolder = null) =>
         throw new InvalidOperationException("Open Quiver's Windows desktop interface and select the installed executable.");
     Task<bool> ConfirmDownloadWithoutRunnerAsync();
     Task<LinuxWindowsRunnerConfig?> ConfigureWindowsRunnerAsync(
@@ -54,7 +54,7 @@ public sealed class AutomaticGameDownloadDialogs(IGameDownloadDialogs inner) : I
 public sealed class AvaloniaGameDownloadDialogs : IGameDownloadDialogs
 {
     public Task<bool> ConfirmWindowsInstallerAsync(string appName) => GameDialogService.ConfirmWindowsInstallerAsync(appName);
-    public Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath) => GameDialogService.PickWindowsExecutableAsync(appName, previousPath);
+    public Task<string?> PickWindowsExecutableAsync(string appName, string? previousPath, string? fallbackFolder = null) => GameDialogService.PickWindowsExecutableAsync(appName, previousPath, fallbackFolder);
     public static AvaloniaGameDownloadDialogs Instance { get; } = new();
 
     public Task<bool> ConfirmDownloadWithoutRunnerAsync() =>
