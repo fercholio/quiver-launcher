@@ -42,6 +42,41 @@ public sealed class LibraryCustomizationService(GameManager manager, LibraryView
         catch (Exception ex) { await message($"Couldn't save the tags: {ex.Message}", "AI Tagging Failed", false); }
     });
 
+    public Task ProvideBaseFileAsync(GameInfo? game) => session.RunAsync(async () =>
+    {
+        if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }
+        if (string.IsNullOrWhiteSpace(game.FolderName)) { await message("This app is missing its install folder.", "Error", false); return; }
+        var installPath = game.GetInstallPath(manager.GamesFolder);
+        if (string.IsNullOrEmpty(installPath) || !Directory.Exists(installPath))
+        {
+            await message($"{game.Name} isn't installed yet. Install it first, then add the base file.", "Not Installed", false);
+            return;
+        }
+
+        session.Token.ThrowIfCancellationRequested();
+        var files = await storage().OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = $"Choose your own game file for {game.Name}",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("Game files") { Patterns = new[] { "*.rom", "*.iso", "*.bin", "*.n64", "*.z64", "*.v64", "*.nds", "*.gba", "*.gb", "*.gbc", "*.nes", "*.sfc", "*.smc", "*.cue", "*.chd", "*.wad", "*.pak" } }, new FilePickerFileType("All files") { Patterns = new[] { "*" } } },
+        }).WaitAsync(session.Token);
+        session.Token.ThrowIfCancellationRequested();
+        if (files.Count == 0) return;
+
+        var source = files[0].Path.LocalPath;
+        var destination = Path.Combine(installPath, Path.GetFileName(source));
+        if (File.Exists(destination) && !await message($"{Path.GetFileName(destination)} already exists in the app folder. Replace it?", "Replace File", true)) return;
+
+        try
+        {
+            File.Copy(source, destination, overwrite: true);
+            await message(
+                $"Copied your file into {game.Name}'s folder:\n{destination}\n\nIf the game still asks for it, check the project's README — some expect a specific name or subfolder. Quiver never provides game files; use a copy you own.",
+                "Base File Added", false);
+        }
+        catch (Exception ex) { await message($"Couldn't copy the file: {ex.Message}", "Error", false); }
+    });
+
     public Task SetIconAsync(GameInfo? game) => session.RunAsync(async () =>
     {
         if (game == null) { await message("Unable to identify the selected app.", "Error", false); return; }

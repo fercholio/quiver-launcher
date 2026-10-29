@@ -91,6 +91,9 @@
 											<MenuItem Header="Add Custom Image"
 													  Click="SetCustomIcon_Click"
 													  CommandParameter="{Binding}"/>
+											<MenuItem Header="Provide Base Game File…"
+													  Click="ProvideBaseFile_Click"
+													  CommandParameter="{Binding}"/>
 											<MenuItem Header="Get Cover (SteamGridDB)"
 													  Click="FetchCoverFromSteamGridDb_Click"
 													  CommandParameter="{Binding}"/>

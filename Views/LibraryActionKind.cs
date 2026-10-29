@@ -25,6 +25,7 @@ public enum LibraryActionKind
     OpenFolder,
     OpenGitHubPage,
     OpenMods,
+    ProvideBaseFile,
     Reinstall,
     RemoveCustomIcon,
     RemoveGameEntry,
