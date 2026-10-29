@@ -159,6 +159,10 @@ public static class GameLaunchService
             // No-ops unless Quiver itself is running inside a Flatpak sandbox.
             HostProcessEnvironment.RouteToHostIfSandboxed(startInfo);
 
+            // The player's own launch options (extra args, env vars, working-dir override) go on last,
+            // so they layer over the runner/platform setup above.
+            ApplyUserLaunchOptions(startInfo, game);
+
             var startInfoEnvAfter = startInfo.UseShellExecute
                 ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 : LaunchDebugReport.SnapshotStartInfoEnvironment(startInfo);
@@ -231,6 +235,50 @@ public static class GameLaunchService
                 await GameDialogService.ShowMessageBoxAsync($"Error launching {game.Name}: {ex.Message}", "Launch Error");
 
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Layers the player's per-game launch options onto the prepared <paramref name="startInfo"/>:
+    /// a working-directory override, extra command-line arguments, and extra environment variables.
+    /// Arguments go onto whichever form the start info already uses (the ArgumentList for the runner /
+    /// macOS paths, otherwise the Arguments string for the Windows shell path). Environment variables
+    /// are only honoured when not using ShellExecute, so we turn ShellExecute off when the player set any.
+    /// </summary>
+    internal static void ApplyUserLaunchOptions(ProcessStartInfo startInfo, GameInfo game)
+    {
+        var workingDir = game.LaunchWorkingDirectory?.Trim();
+        if (!string.IsNullOrEmpty(workingDir) && Directory.Exists(workingDir))
+            startInfo.WorkingDirectory = workingDir;
+
+        if (!string.IsNullOrWhiteSpace(game.LaunchArguments))
+        {
+            var raw = game.LaunchArguments.Trim();
+            if (startInfo.ArgumentList.Count > 0)
+            {
+                List<string> tokens;
+                try { tokens = LaunchOptions.SplitArguments(raw); }
+                catch (FormatException) { tokens = [raw]; }
+                foreach (var token in tokens)
+                    startInfo.ArgumentList.Add(token);
+            }
+            else
+            {
+                startInfo.Arguments = string.IsNullOrEmpty(startInfo.Arguments)
+                    ? raw
+                    : $"{startInfo.Arguments} {raw}";
+            }
+        }
+
+        if (game.LaunchEnvironment is { Count: > 0 })
+        {
+            if (startInfo.UseShellExecute)
+                startInfo.UseShellExecute = false;
+            foreach (var pair in game.LaunchEnvironment)
+            {
+                if (!string.IsNullOrWhiteSpace(pair.Key))
+                    startInfo.Environment[pair.Key] = pair.Value;
+            }
         }
     }
 

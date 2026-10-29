@@ -314,6 +314,25 @@ namespace QuiverLauncher.Models
         /// <summary>Per-app custom launch command (placeholders: {exe}, {gamePath}, {exeDir}).</summary>
         public string? LinuxCustomLaunchCommand { get; set; }
 
+        /// <summary>Extra command-line arguments passed to the game's executable on launch (e.g. a renderer
+        /// flag or a mod folder path). Null/empty = none. Persisted in apps.json.</summary>
+        public string? LaunchArguments { get; set; }
+
+        /// <summary>Overrides the working directory the game is started in. Null/empty = the executable's
+        /// own folder (the default). Persisted in apps.json.</summary>
+        public string? LaunchWorkingDirectory { get; set; }
+
+        /// <summary>Extra environment variables set for the game's process on launch. Empty = none.
+        /// Persisted in apps.json.</summary>
+        public Dictionary<string, string> LaunchEnvironment { get; set; } = new(StringComparer.Ordinal);
+
+        /// <summary>True when the player has set any custom launch option for this app.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool HasCustomLaunchOptions =>
+            !string.IsNullOrWhiteSpace(LaunchArguments) ||
+            !string.IsNullOrWhiteSpace(LaunchWorkingDirectory) ||
+            (LaunchEnvironment != null && LaunchEnvironment.Count > 0);
+
         private bool _autoUpdate;
         /// <summary>When true, available updates install automatically without the review prompt.</summary>
         public bool AutoUpdate

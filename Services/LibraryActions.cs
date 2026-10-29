@@ -150,6 +150,49 @@ public sealed class LibraryActions
         });
     }
 
+    public async Task ConfigureLaunchOptionsAsync(GameInfo? game)
+    {
+        if (RefuseKiosk()) return;
+        await _session.RunAsync(async () =>
+        {
+            if (game == null || (string.IsNullOrWhiteSpace(game.FolderName) && string.IsNullOrWhiteSpace(game.InstallPath)))
+            {
+                await ShowMessageBoxAsync("Unable to identify the selected app.", "Error");
+                return;
+            }
+
+            try
+            {
+                var dialog = new QuiverLauncher.Views.LaunchOptionsDialog(
+                    game.Name ?? "this app",
+                    game.LaunchArguments,
+                    game.LaunchWorkingDirectory,
+                    game.LaunchEnvironment);
+                await GameDialogService.ShowWindowAsync(dialog, _session.Token);
+                if (!dialog.Saved || _session.IsClosed)
+                    return;
+
+                game.LaunchArguments = string.IsNullOrWhiteSpace(dialog.Arguments) ? null : dialog.Arguments;
+                game.LaunchWorkingDirectory = string.IsNullOrWhiteSpace(dialog.WorkingDirectory) ? null : dialog.WorkingDirectory;
+                game.LaunchEnvironment = LaunchOptions.ParseEnvironment(dialog.EnvironmentText);
+
+                var allGames = await LoadGamesFromJsonAsync();
+                var matchingGame = FindMatchingSavedApp(allGames, game);
+                if (matchingGame != null)
+                {
+                    matchingGame.LaunchArguments = game.LaunchArguments;
+                    matchingGame.LaunchWorkingDirectory = game.LaunchWorkingDirectory;
+                    matchingGame.LaunchEnvironment = game.LaunchEnvironment;
+                    await SaveGamesToJsonAsync(allGames);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageBoxAsync($"Failed to save launch options: {ex.Message}", "Launch Options");
+            }
+        });
+    }
+
     public async Task LocateInstallAsync(GameInfo? game)
     {
         if (RefuseKiosk()) return;

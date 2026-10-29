@@ -7,6 +7,7 @@ public enum LibraryActionKind
     AutoUpdateMenu,
     BackToVerifiedUpdates,
     ChangeVersion,
+    ConfigureLaunchOptions,
     ConfigureWindowsRunner,
     CreateShortcut,
     DeleteGameFromLibrary,
